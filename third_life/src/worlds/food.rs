@@ -118,13 +118,17 @@ fn init_food(
             },
         ));
         commands.spawn((
-            CarbResource { amount: world_config.food().starting_carb() },
+            CarbResource {
+                amount: world_config.food().starting_carb(),
+            },
             ResourceOf {
                 colony: colony_entity,
             },
         ));
         commands.spawn((
-            MeatResource { amount: world_config.food().starting_carb() },
+            MeatResource {
+                amount: world_config.food().starting_carb(),
+            },
             ResourceOf {
                 colony: colony_entity,
             },
