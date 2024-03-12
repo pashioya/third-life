@@ -43,7 +43,8 @@ impl Plugin for PopulationPlugin {
         )
         .add_systems(
             Update,
-            (update_population, check_birthdays, come_of_age, retirement).run_if(in_state(SimulationState::Running)),
+            (update_population, check_birthdays, come_of_age, retirement)
+                .run_if(in_state(SimulationState::Running)),
         )
         .add_event::<CitizenBirthday>()
         .add_plugins((
@@ -139,7 +140,6 @@ pub fn update_population(
                 population.younglings = younglings.iter().filter(|&y| y.colony == colony).count();
                 population.retirees = retirees.iter().filter(|&y| y.colony == colony).count();
                 population.working_pop = working_pop.iter().filter(|&y| y.colony == colony).count();
-                    
 
                 let all_women_children_had: Vec<f32> = women
                     .iter()
@@ -181,9 +181,9 @@ pub fn check_birthdays(
     }
 }
 
-pub fn come_of_age (
-    mut commands: Commands, 
-    mut birthday_event_reader: EventReader<CitizenBirthday>
+pub fn come_of_age(
+    mut commands: Commands,
+    mut birthday_event_reader: EventReader<CitizenBirthday>,
 ) {
     for birthday in birthday_event_reader.read() {
         if birthday.age == 18 {
@@ -195,10 +195,7 @@ pub fn come_of_age (
     }
 }
 
-pub fn retirement (
-    mut commands: Commands, 
-    mut birthday_event_reader: EventReader<CitizenBirthday>
-) {
+pub fn retirement(mut commands: Commands, mut birthday_event_reader: EventReader<CitizenBirthday>) {
     for birthday in birthday_event_reader.read() {
         if birthday.age == 65 {
             commands.get_entity(birthday.entity).map(|mut e| {
