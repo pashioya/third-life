@@ -24,7 +24,7 @@ impl Plugin for PopulationUiPlugin {
 }
 
 pub fn add_citizens_to_population_histogram(
-    mut pop_histograms: Query<(&WorldUiEntity, &mut PopulationHistorgram)>,
+    mut pop_histograms: Query<(&WorldUiEntity, &mut PopulationHistogram)>,
     mut citizen_created: EventReader<CitizenCreated>,
 ) {
     let mut map = pop_histograms.iter_mut().map(|(e, p)| (e.0, p)).collect::<HashMap<_, _>>();
@@ -41,7 +41,7 @@ pub fn add_citizens_to_population_histogram(
 pub fn update_ages(
     citizens: Query<(&Citizen, &CitizenOf)>,
     game_date: Res<GameDate>,
-    mut populations: Query<(&WorldUiEntity, &mut PopulationHistorgram)>
+    mut populations: Query<(&WorldUiEntity, &mut PopulationHistogram)>
 ) {
     let map = populations.iter_mut().map(|(e, p)| (e.0, p)).collect::<HashMap<_, _>>();
     let populations_map = citizens.into_iter().fold(
@@ -65,7 +65,7 @@ pub fn update_ages(
 
 pub fn update_general_pop(
     query: Query<(Entity, &Population)>,
-    mut populations: Query<(&WorldUiEntity, &mut PopulationHistorgram)>
+    mut populations: Query<(&WorldUiEntity, &mut PopulationHistogram)>
 ) {
     let mut map = populations.iter_mut().map(|(e, p)| (e.0, p)).collect::<HashMap<_, _>>();
     for (col, population) in query.iter() {
@@ -85,7 +85,7 @@ pub fn update_general_pop(
 
 pub fn general_pop(
     ui: &mut Ui,
-    pop: &PopulationHistorgram,
+    pop: &PopulationHistogram,
 ) {
     ui.horizontal(|ui| {
         ui.label(format!("Pop count: {:?}",pop.count));

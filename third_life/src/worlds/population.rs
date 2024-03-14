@@ -1,7 +1,8 @@
 pub mod components;
-mod dying;
 pub mod events;
+mod dying;
 mod food_consumption;
+mod growing;
 mod giving_birth;
 mod relationships;
 
@@ -16,8 +17,7 @@ use crate::{
     time::{DateChanged, GameDate},
     SimulationState,
 };
-use bevy::{prelude::*, utils::HashMap};
-use bevy_egui::egui::ahash::HashMapExt;
+use bevy::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use rand::{thread_rng, Rng};
 use rand_distr::{
@@ -26,7 +26,7 @@ use rand_distr::{
 };
 use rnglib::{Language, RNG};
 
-use self::food_consumption::FoodConsumptionPlugin;
+use self::{food_consumption::FoodConsumptionPlugin, growing::GrowingPlugin};
 
 use super::{
     config::{WorldConfig, WorldsConfig},
@@ -46,13 +46,11 @@ impl Plugin for PopulationPlugin {
             (update_population, check_birthdays, come_of_age, retirement)
                 .run_if(in_state(SimulationState::Running)),
         )
-        .add_event::<CitizenBirthday>()
         .add_plugins((
-            GivingBirthPlugin,
-            DeathsPlugin,
-            RelationshipsPlugin,
-            FoodConsumptionPlugin,
-        ));
+                GivingBirthPlugin, DeathsPlugin, RelationshipsPlugin,
+                FoodConsumptionPlugin, GrowingPlugin
+        ))
+        .add_event::<CitizenBirthday>();
     }
 }
 
@@ -67,15 +65,12 @@ pub fn init_citizens(
         let mut rng = thread_rng();
         let name_rng = RNG::try_from(&Language::Roman).unwrap();
         let skew_normal = SkewNormal::new(
-            pop_config.location(),
-            pop_config.scale(),
-            pop_config.shape(),
-        )
-        .unwrap();
+            pop_config.population_dist().location(), pop_config.population_dist().scale(), pop_config.population_dist().shape()
+        ).unwrap();
         let mut age_gen = skew_normal.sample_iter(&mut rng);
         let year = game_date.date.year_ce().1 as usize;
 
-        for _ in 0..pop_config.size() {
+        for _ in 0..pop_config.population_size() {
             let age = age_gen.next().unwrap().floor() as usize;
             let birthday = NaiveDate::from_yo_opt(
                 (year - age).try_into().unwrap(),
@@ -85,7 +80,9 @@ pub fn init_citizens(
 
             let citizen = Citizen {
                 name: name_rng.generate_name(),
-                birthday,
+                birthday, 
+                height: pop_config.height_dist().average(),
+                weight: pop_config.weight_dist().average()
             };
             if game_date.years_since(birthday).unwrap() >= 18 as u32 {
                 match roll_chance(50) {

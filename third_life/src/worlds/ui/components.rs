@@ -1,5 +1,5 @@
 use bevy::{prelude::*, reflect::List};
-use std::{collections::HashMap, time::Duration};
+use std::{collections::HashMap, time::Duration, usize};
 
 #[derive(Component)]
 pub struct WorldUi;
@@ -11,7 +11,7 @@ pub struct WorldUiName(pub String);
 pub struct WorldUiEntity(pub Entity);
 
 #[derive(Component)]
-pub struct PopulationHistorgram {
+pub struct PopulationHistogram {
     pub count: usize,
     pub working_pop: usize,
     pub younglings: usize,
@@ -62,16 +62,32 @@ pub struct ResourceStorage {
     pub timer: Timer,
     pub meat: Vec<f32>,
     pub carb: Vec<f32>,
-    pub food: Vec<f32>,
 }
 
 impl ResourceStorage {
     pub fn new() -> Self {
         Self {
             timer: Timer::from_seconds(0.5, TimerMode::Repeating),
-            meat: vec![0.], carb: vec![0.], food: vec![0.]
+            meat: vec![0.], carb: vec![0.]
         }
     }
+}
+#[derive(Component, Default)]
+pub struct ResourceConsumption {
+    pub meat: f32,
+    pub carb: f32
+}
+
+#[derive(Component, Default)]
+pub struct ResourceProduction {
+    pub meat: f32,
+    pub carb: f32
+}
+
+#[derive(Component, Default)]
+pub struct FarmsCount {
+    pub meat: usize,
+    pub carb: usize,
 }
 
 #[derive(Bundle)]
@@ -79,8 +95,11 @@ pub struct WorldUiBundle {
     pub ui: WorldUi,
     pub name: WorldUiName,
     pub entity: WorldUiEntity,
-    pub pop: PopulationHistorgram,
+    pub pop: PopulationHistogram,
     pub deaths: PopulationDeathLines,
+    pub farms_count: FarmsCount,
+    pub prod: ResourceProduction,
+    pub cons: ResourceConsumption,
     pub stor: ResourceStorage,
 }
 
@@ -90,8 +109,11 @@ impl WorldUiBundle {
             ui: WorldUi,
             name: WorldUiName(name),
             entity: WorldUiEntity(entity),
-            pop: PopulationHistorgram { count: 0, working_pop: 0, younglings: 0, retirees: 0, average_age: 0, ages: HashMap::new(), average_children_per_mother: 0.0},
+            pop: PopulationHistogram { count: 0, working_pop: 0, younglings: 0, retirees: 0, average_age: 0, ages: HashMap::new(), average_children_per_mother: 0.0},
             deaths: PopulationDeathLines::new(),
+            farms_count: FarmsCount::default(),
+            prod: ResourceProduction::default(),
+            cons: ResourceConsumption::default(),
             stor: ResourceStorage::new(),
         }
     }

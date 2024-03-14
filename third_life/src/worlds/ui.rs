@@ -6,12 +6,10 @@ use components::*;
 use population_ui::*;
 use resources_ui::*;
 
-use core::panic;
-use std::collections::HashMap;
-use bevy::{prelude::*, reflect::List};
-use bevy_egui::{EguiContexts, egui::{Color32, Window, Ui}};
+use bevy::prelude::*;
+use bevy_egui::{EguiContexts, egui::Window};
 use chrono::NaiveDate;
-use egui_plot::{Plot, BarChart, Legend, Bar, PlotPoint, PlotPoints, Line};
+use egui_plot::{PlotPoint, PlotPoints};
 use crate::{config::ThirdLifeConfig, time::GameDate, SimulationState};
 
 use super::{init_colonies, WorldEntity};
@@ -27,10 +25,6 @@ impl Plugin for WorldsUiPlugin {
             .add_plugins((PopulationUiPlugin, ResourcesUiPlugin));
     }
 }
-
-
-
-
 
 fn init_worlds_windows(
     mut commands: Commands,
@@ -48,11 +42,14 @@ fn display_world_uis(
     ui_data: Query<(
         &WorldUiName,
         &ResourceStorage,
-        &PopulationHistorgram,
+        &PopulationHistogram,
         &PopulationDeathLines,
+        &FarmsCount,
+        &ResourceProduction,
+        &ResourceConsumption,
     )>,
 ) {
-    for (world, stor, pop, death) in &ui_data {
+    for (world, stor, pop, death, farms, prod, cons) in &ui_data {
         let name = &world.0;
         Window::new(format!("Window of {name}"))
             .default_open(false)
@@ -61,7 +58,7 @@ fn display_world_uis(
                 ui.label(format!("Date: {}", game_date.date));
                 ui.label(format!("Years Elapsed: {}", game_date.date.years_since(start_date).unwrap()));
                 ui.separator();
-                resources_storage(name, ui, &stor);
+                resources(name, ui, &stor, &farms, &prod, &cons);
                 ui.separator();
                 general_pop(ui, &pop);
                 ui.separator();

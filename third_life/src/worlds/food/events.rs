@@ -13,7 +13,13 @@ pub struct CowFarmNeedsWorker {
 }
 
 #[derive(Event)]
-pub struct MeatConsumed {
+pub struct MeatCreated {
+    pub colony: Entity,
+    pub amount: f32
+}
+
+#[derive(Event)]
+pub struct MeatConsumedEvent {
     pub colony: Entity,
     pub amount: f32
 }
@@ -25,7 +31,7 @@ pub struct CarbCreated {
 }
 
 #[derive(Event)]
-pub struct CarbConsumed {
+pub struct CarbConsumedEvent {
     pub colony: Entity,
     pub amount: f32
 }
@@ -34,4 +40,20 @@ pub struct CarbConsumed {
 pub struct FoodCreated {
     pub colony: Entity,
     pub amount: f32
+}
+#[derive(Event)]
+pub struct CowFarmCreated {
+    pub colony: Entity
+}
+#[derive(Event)]
+pub struct WheatFarmCreated {
+    pub colony: Entity
+}
+#[derive(Event)]
+pub struct CowFarmRemoved {
+    pub colony: Entity
+}
+#[derive(Event)]
+pub struct WheatFarmRemoved {
+    pub colony: Entity
 }

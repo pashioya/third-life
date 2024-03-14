@@ -15,7 +15,8 @@ impl Plugin for TimeDatePlugin {
             update_date.run_if(in_state(SimulationState::Running)),
         )
         .add_event::<DateChanged>()
-        .add_event::<MonthChanged>();
+        .add_event::<MonthChanged>()
+        .add_event::<YearChanged>();
     }
 }
 
@@ -52,6 +53,7 @@ fn update_date(
     mut game_date: ResMut<GameDate>,
     mut date_changed_writer: EventWriter<DateChanged>,
     mut month_changed_writer: EventWriter<MonthChanged>,
+    mut year_changed_writer: EventWriter<YearChanged>,
 ) {
     day_length.timer.tick(time.delta());
 
@@ -60,6 +62,10 @@ fn update_date(
 
         if game_date.date.month() != game_date.date.pred_opt().unwrap().month() {
             month_changed_writer.send(MonthChanged);
+        }
+
+        if game_date.date.year() != game_date.date.pred_opt().unwrap().year() {
+            year_changed_writer.send(YearChanged);
         }
 
         date_changed_writer.send(DateChanged::from_date(game_date.date));
@@ -83,6 +89,8 @@ impl DateChanged {
         Self { date }
     }
 }
+#[derive(Event)]
+pub struct YearChanged;
 
 #[derive(Event)]
 pub struct MonthChanged;
