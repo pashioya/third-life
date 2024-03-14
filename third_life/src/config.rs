@@ -188,7 +188,7 @@ fn recive_config_loaded_events(
     }
 
     if all.iter().all(|(_, e)|e.eq(&LoadingReader::Recived)) {
-        sim_state.set(SimulationState::Running);
+        sim_state.set(SimulationState::FinishedLoadingConfig);
     }
 }
 

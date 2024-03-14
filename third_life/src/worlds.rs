@@ -1,9 +1,9 @@
 pub mod config;
-mod food;
-mod population;
-mod ui;
-mod env_and_infra;
-mod wealth;
+pub(crate) mod food;
+pub(crate) mod population;
+pub(crate) mod ui;
+pub(crate) mod env_and_infra;
+pub(crate) mod wealth;
 
 
 
@@ -32,7 +32,7 @@ impl Plugin for WorldsPlugin {
 
 
 
-fn init_colonies(
+pub(crate) fn init_colonies(
     mut commands: Commands,
     worlds_config: Res<WorldsConfig>,
     asset_server: Res<AssetServer>,
@@ -69,7 +69,7 @@ pub struct WorldColony;
 
 #[derive(Component)]
 pub struct WorldEntity {
-    name: String,
+    pub name: String,
 }
 
 impl WorldEntity {

@@ -2,22 +2,22 @@
 //! which have been researched but still dumbed down to make them easier to
 //! implement. For more details check out the [Gitlab Wiki](https://gitlab.com/groups/kdg-ti/the-lab/teams-23-24/third-life/-/wikis/home)
 
-mod common;
+pub(crate) mod common;
 /// Coponets for the reading and creation of config Files
-mod config;
-mod time;
-mod worlds;
-mod animation;
-mod ui;
+pub(crate) mod config;
+pub(crate) mod time;
+pub(crate) mod worlds;
+pub(crate) mod animation;
+pub(crate) mod ui;
+mod data_agg;
 
 
 
 use animation::ThirdLifeAnimationPlugin;
 use bevy::{log::LogPlugin, prelude::*};
-use bevy_egui::{
-    EguiPlugin,
-};
+use bevy_egui::EguiPlugin;
 use config::ConfigurationPlugin;
+use data_agg::DataAggPlugin;
 use time::TimeDatePlugin;
 use ui::ThridLifeUiPlugin;
 use worlds::WorldsPlugin;
@@ -34,12 +34,23 @@ pub enum SimulationState {
     #[default]
     ConfigSelection,
     LoadingConfig,
+    FinishedLoadingConfig,
+    LoadingDatabase,
+    FinishedLoadingDatabase,
     Running,
 }
 
 fn main() {
     App::new()
         .init_state::<SimulationState>()
+        .add_systems(
+            OnEnter(SimulationState::FinishedLoadingConfig),
+            start_loading_database
+        )
+        .add_systems(
+            OnEnter(SimulationState::FinishedLoadingDatabase),
+            start_running
+        )
         .add_plugins((
             DefaultPlugins
                 .set(WindowPlugin {
@@ -60,7 +71,18 @@ fn main() {
             TimeDatePlugin,
             WorldsPlugin,
             ThridLifeUiPlugin,
-            ThirdLifeAnimationPlugin
+            ThirdLifeAnimationPlugin,
+            DataAggPlugin
         ))
         .run();
+}
+
+fn start_loading_database(mut sim_state: ResMut<NextState<SimulationState>>) {
+    println!("starting the loading of the db");
+    sim_state.set(SimulationState::LoadingDatabase);
+}
+
+fn start_running(mut sim_state: ResMut<NextState<SimulationState>>) {
+    println!("running the sim");
+    sim_state.set(SimulationState::Running);
 }
