@@ -39,7 +39,27 @@ pub struct WorldConfig {
 pub struct PopulationConfig {
     /// Starting number of Peple. Any Real number
     #[def(1000)]
-    size: Option<u32>,
+    population_size: Option<u32>,
+
+    #[def(PopulationDistributionConfig::def_conf())]
+    population_dist: Option<PopulationDistributionConfig>,
+    /// The spread in this case refers to at which age the probability of death
+    /// starts to increase. Does not affect the actual average life expectancy.
+    #[def(6.)]
+    life_expectancy_spread: Option<f32>,
+    /// Where the average person falls in terms of bodyweight
+    #[def(WeightDistributionConfig::def_conf())]
+    weight_dist: Option<WeightDistributionConfig>,
+    /// Where the average person falls in terms of height
+    #[def(HeightDistributionConfig::def_conf())]
+    height_dist: Option<HeightDistributionConfig>,
+    /// The target ratio of macros in a colony. Has to add up to make 100
+    #[def(DietMacroRatiosConfig::def_conf())]
+    diet_macro_ratios: Option<DietMacroRatiosConfig>
+}
+
+#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+pub struct PopulationDistributionConfig {
     /// Location of the Skew normal distribution. Any Positive number
     #[def(18.)]
     location: Option<f32>,
@@ -49,10 +69,27 @@ pub struct PopulationConfig {
     /// Shape of the Skew normal distribution
     #[def(10.)]
     shape: Option<f32>,
-    /// The spread in this case refers to at which age the probability of death
-    /// starts to increase. Does not affect the actual average life expectancy.
-    #[def(6.)]
-    life_expectancy_spread: Option<f32>
+}
+
+#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+pub struct WeightDistributionConfig {
+    #[def(70.)]
+    average: Option<f32>
+}
+#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+pub struct HeightDistributionConfig {
+    #[def(180.)]
+    average: Option<f32>
+}
+
+#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+pub struct DietMacroRatiosConfig {
+    #[def(20)]
+    protein: usize,
+    #[def(30)]
+    fat: usize,
+    #[def(50)]
+    carbs: usize
 }
 
 #[derive(Deserialize, Debug, Clone, Resource, Default, Config)]

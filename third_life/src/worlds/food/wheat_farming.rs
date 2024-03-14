@@ -124,7 +124,7 @@ pub fn work_farm(
                     for (mut carb_resource, resource_of) in carb_resources.iter_mut() {
                         if resource_of.colony == colony {
                             let amount = harvested_amount * 2670.0;
-                            carb_resource.amount += amount;
+                            carb_resource.add_kgs(amount);
                             carb_created.send(CarbCreated { colony, amount });
                         }
                     }
