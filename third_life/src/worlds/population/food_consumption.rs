@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use bevy::prelude::*;
-
+use rand::thread_rng;
+use rand::seq::SliceRandom;
 use crate::{time::{DateChanged, GameDate}, worlds::{config::WorldsConfig, food::{components::{CarbResource, FedStatus, MeatResource, ResourceOf}, events::{CarbConsumedEvent, MeatConsumedEvent}}, init_colonies, WorldColony, WorldEntity}, SimulationState};
 
 use super::{Citizen, CitizenOf, DietMacroRatios, Male, Starving, StarvingStatus, MeatConsumed, CarbConsumed};
@@ -165,15 +166,18 @@ fn consume(
             completely_fed_colonies.insert(*colony, status);
         }
     }
+    
 
     colony_to_citizens.into_iter().for_each(
         |(colony, mut citizens_of_colony)| {
+            citizens_of_colony.shuffle(&mut thread_rng());
             match completely_fed_colonies.get(&colony) {
                 // ATTENTION: this feed_status is does not contain the calory
                 // numbers for a single citizen but for the whole colony
                 Some(feed_status) => {
                     let statuses = (0..day_events.len()).into_iter().map(|_|feed_status).collect::<Vec<_>>();
-                    citizens_of_colony.into_iter()
+                    citizens_of_colony
+                        .into_iter()
                         .filter_map(|(entity, _, _, starving_optional, _)|
                             starving_optional.map(|starving| (entity, starving))
                         )
@@ -187,7 +191,8 @@ fn consume(
                 },
                 None => {
                     for _ in day_events.iter() {
-                        citizens_of_colony.iter_mut()
+                        citizens_of_colony
+                            .iter_mut()
                             .for_each(|(citizen_entity, _, _, ref mut starving_optional, daily_cal)| {
                                 let meat_ratio = colony_diets_map.get(&colony).unwrap();
                                 let carb_res = colony_carb_res.get_mut(&colony).unwrap();
