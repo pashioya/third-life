@@ -1,11 +1,10 @@
 use bevy::{prelude::*, utils::HashMap};
 use chrono::{Datelike, NaiveDate};
 
-use crate::{time::{DateChanged, GameDate}, worlds::population::components::{CitizenOf, Employed}};
+use crate::{time::{DateChanged, GameDate, YearChanged}, worlds::{config::WorldConfig, population::components::{CarbConsumed, CitizenOf, Employed}}};
 
 use super::{
-    CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmNeedsWorker, WheatFarmOf,
-    WheatFarmer,
+    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer
 };
 
 pub fn season_check_wheat(
@@ -22,7 +21,39 @@ pub fn season_check_wheat(
         }
     }
 }
+pub fn check_for_more_wheat_farms(
+    mut commands: Commands,
+    mut colonies: Query<(Entity, &mut CarbConsumed, &mut CarbProduced, &WorldConfig)>,
+    carb_resources: Query<(&ResourceOf, &CarbResource)>,
+    mut year_changed_reader: EventReader<YearChanged>,
+) {
+    let resource_map = carb_resources
+        .iter()
+        .map(|(e, r)| (e.colony, r))
+        .collect::<HashMap<_, _>>();
 
+    for _ in year_changed_reader.read() {
+        for (colony, mut carb_consumed, mut carb_produced, world_config) in colonies.iter_mut() {
+            let min_surplus = world_config.food().min_surplus_multiplier();
+            warn!("Wheat");
+            warn!("{:?}", min_surplus);
+            warn!("Surplus {:?}, Min Surplus {:?}", resource_map.get(&colony).unwrap().get_kgs(), carb_consumed.amount*min_surplus);
+            //if carb_produced.amount <= carb_consumed.amount {
+            if carb_consumed.amount*min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
+                warn!("Spawn new Wheat Farm");
+                commands.spawn((
+                    WheatFarm {
+                        size: 17.4,
+                        harvested: 17.4,
+                    },
+                    WheatFarmOf { colony },
+                ));
+            }
+            carb_consumed.amount = 0.0;
+            carb_produced.amount = 0.0;
+        }
+    }
+}
 pub fn check_farm_workers(
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut event_writer: EventWriter<WheatFarmNeedsWorker>,
