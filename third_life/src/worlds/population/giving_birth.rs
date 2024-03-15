@@ -48,8 +48,8 @@ pub fn citizen_births(
                         let name = name_rng.generate_name();
 
                         match roll_chance(50) {
-                            true => commands.spawn(MaleCitizenBundle::new(name, colony, game_date.date)),
-                            false => commands.spawn(FemaleCitizenBundle::new(name, colony, game_date.date)),
+                            true => commands.spawn((MaleCitizenBundle::new(name, colony, game_date.date),Youngling)),
+                            false => commands.spawn((FemaleCitizenBundle::new(name, colony, game_date.date), Youngling)),
                         };
 
                         event_writer.send(CitizenCreated { age: 0, colony });

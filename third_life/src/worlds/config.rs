@@ -122,12 +122,14 @@ pub struct EnvironmentConfig {
 pub struct FoodConfig {
     #[def(6)]
     cow_farms: Option<usize>,
-     #[def(4)]
+    #[def(4)]
     wheat_farms: Option<usize>,
     #[def(5000.0)]
     starting_beef: Option<f32>,
-     #[def(5000.0)]
+    #[def(5000.0)]
     starting_carb: Option<f32>,
+    #[def(1.0)]
+    min_surplus_multiplier: Option<f32>,
 }
 
 #[derive(Deserialize, Debug, Clone, Resource, Default, Config)]

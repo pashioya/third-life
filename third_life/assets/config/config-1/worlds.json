@@ -36,9 +36,12 @@
                 "env_health": 0.5,
                 "ecosystem_vitylity": 0.5
             },
-            "farms" : {
+            "food" : {
                 "cow_farms": 5,
-                "wheat_farms": 2
+                "wheat_farms": 2,
+                "starting_beef": 3000.0,
+                "starting_carb": 3000.0,
+                "min_surplus_multiplier": 1.5
             },
             "sprite": {
                 "sprite_sheet": "terran.png",

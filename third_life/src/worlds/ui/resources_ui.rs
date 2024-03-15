@@ -10,7 +10,7 @@ use crate::worlds::{
             CarbResource, CowFarmOf, MeatResource, ResourceOf, WheatFarmOf,
         },
         events::{CarbCreated, MeatCreated}, tracking::{CarbProduced, MeatProduced},
-    }, population::components::MeatConsumed, ui::components::*
+    }, population::components::{CarbConsumed, MeatConsumed}, ui::components::*
 };
 
 use crate::{config::ThirdLifeConfig, time::GameDate, SimulationState};
@@ -133,11 +133,11 @@ fn update_meat_produced(
 }
 
 fn update_carb_consumed(
-    carb_produced: Query<(Entity, &CarbProduced)>,
+    carb_consumed: Query<(Entity, &CarbConsumed)>,
     mut ui_data: Query<(&WorldUiEntity, &mut ResourceConsumption)>
 ) {
     for (world_ui_entity, mut resource_consumption) in ui_data.iter_mut() {
-        resource_consumption.carb = carb_produced.get(world_ui_entity.0).unwrap().1.amount;
+        resource_consumption.carb = carb_consumed.get(world_ui_entity.0).unwrap().1.amount;
     }
 }
 
