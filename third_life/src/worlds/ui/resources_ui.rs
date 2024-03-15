@@ -94,7 +94,7 @@ fn update_ui_farms_count(
 ) {
     let cow_farms_map = cow_farms.iter().fold(
         HashMap::new(),
-        |mut acc: HashMap<Entity, usize>, (cow_farm_of)| {
+        |mut acc: HashMap<Entity, usize>, cow_farm_of | {
             *acc.entry(cow_farm_of.colony).or_insert(0) += 1;
             acc
         },
@@ -102,7 +102,7 @@ fn update_ui_farms_count(
 
     let wheat_farms_map = wheat_farms.iter().fold(
         HashMap::new(),
-        |mut acc: HashMap<Entity, usize>, (wheat_farm_of)| {
+        |mut acc: HashMap<Entity, usize>, wheat_farm_of | {
             *acc.entry(wheat_farm_of.colony).or_insert(0) += 1;
             acc
         },
