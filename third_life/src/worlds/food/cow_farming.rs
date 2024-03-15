@@ -11,8 +11,7 @@ use crate::{
 };
 
 use super::{
-    Cow, CowFarm, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf, IsBreeder, IsBull,
-    MeatResource, ResourceOf,
+    Cow, CowFarm, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf
 };
 
 pub fn mark_breeders(
@@ -168,6 +167,7 @@ pub fn work_cow_farm(
     bulls: Query<(Entity, &Cow, &CowOf), (With<IsBull>, Without<IsBreeder>)>,
     farmers: Query<(&CowFarmer, &CitizenOf)>,
     mut meat_resources: Query<(&mut MeatResource, &ResourceOf)>,
+    mut meat_created: EventWriter<MeatCreated>
 ) {
     for _ in day_changed_event_reader.read() {
         let mut farms_map = cow_farms.iter_mut().fold(
@@ -242,7 +242,8 @@ pub fn work_cow_farm(
 
             for (mut meat_resource, resource_of) in meat_resources.iter_mut() {
                 if resource_of.colony == colony {
-                    meat_resource.amount += meat_harvested as f32;
+                    meat_resource.add_kgs(meat_harvested as f32);
+                    meat_created.send(MeatCreated{ colony, amount:meat_harvested as f32});
                 }
             }
         }

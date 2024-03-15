@@ -14,7 +14,8 @@ use influxdb2::Client;
 use bevy_async_task::{AsyncTaskRunner, AsyncTaskStatus};
 
 use self::components::InfluxDB;
-use self::food_data::{carb_recording, meat_recording};
+use self::food_data::{carb_consumption_recording, carb_recording, meat_consumption_recording, meat_recording};
+use self::population_data::{birth_recording, death_recording, population_recording};
 
 pub struct DataAggPlugin;
 
@@ -28,7 +29,9 @@ impl Plugin for DataAggPlugin {
         .add_systems(
             Update,
             (
-                meat_recording, carb_recording
+                population_recording, birth_recording, death_recording,
+                meat_recording, carb_recording,
+                meat_consumption_recording, carb_consumption_recording
             ).run_if(in_state(SimulationState::Running)),
         );
     }

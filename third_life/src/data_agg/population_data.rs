@@ -1,56 +1,62 @@
-use crate::time::GameDate;
+use crate::time::{DateChanged, GameDate};
 use crate::worlds::population::components::Population;
+use crate::worlds::population::events::{CitizenCreated, CitizenDied};
 use crate::worlds::WorldEntity;
 use bevy::prelude::*;
 use chrono::{NaiveDateTime, NaiveTime, TimeZone, Utc};
+use futures::stream;
 use influxdb2::models::DataPoint;
 
 use bevy_async_task::{AsyncTask, AsyncTaskPool};
 
+use super::components::{CitizenCreatedRecord, CitizenDiedRecord, InfluxDB, PopulationRecord};
+use super::utils::{to_influx_mapped, to_influx_vec};
 
-/*
-pub fn population_queue(
-    mut task_pool: AsyncTaskPool<()>,
+
+
+pub fn population_recording(
+    task_pool: AsyncTaskPool<()>,
+    influxdb: Res<InfluxDB>,
+    day_changed: EventReader<DateChanged>,
+    populations: Query<(Entity, &Population)>,
+) {
+    let mapping_fn = |date, (entity, pop)| {
+        PopulationRecord::from_population(
+                &date, pop, &entity
+        )
+    };
+
+    to_influx_mapped(
+        task_pool, &influxdb, 
+        mapping_fn, populations.into_iter().collect(),
+        day_changed
+    );
+}
+
+pub fn birth_recording(
+    task_pool: AsyncTaskPool<()>,
     influxdb: Res<InfluxDB>,
     game_date: Res<GameDate>,
-    populations: Query<(&WorldEntity, &Population)>,
+    day_changed: EventReader<DateChanged>,
+    mut births: EventReader<CitizenCreated>
 ) {
-    let date_time = Utc::from_local_datetime(
-        &Utc,
-        &NaiveDateTime::new(
-            game_date.date,
-            NaiveTime::from_hms_nano_opt(1, 1, 1, 1).unwrap(),
-        ),
-    )
-    .unwrap()
-    .to_string();
+    let records = CitizenCreatedRecord::from_events(
+        &game_date.date, births.read().collect()
+    );
 
-    for (world, population) in &populations {
-        let data = vec![DataPoint::builder("population")
-            .tag("world", world.name.clone())
-            .field("population_count", population.count as i64)
-            .field("average_age", population.average_age as f64)
-            .field(
-                "average_children_per_mother",
-                population.average_children_per_mother as f64,
-            )
-            .field("game_date", date_time.clone())
-            //.timestamp(date_time)
-            .build()
-            .unwrap()];
+    to_influx_vec(task_pool, &influxdb, records, day_changed);
+}
 
-        let client = influxdb.client.clone();
-        let bucket = influxdb.bucket.clone();
-        let task = AsyncTask::new(async move {
-            let result = write_data(client, bucket.as_str(), data).await;
-            if !result.is_ok() {
-                println!("Error writing population data to InfluxDB");
-                println!("{:?}", result.err());
-            }
-        });
-        let (fut, _) = task.into_parts();
-        task_pool.spawn(async {
-            fut.await;
-        })
-    }
-}*/
+pub fn death_recording(
+    task_pool: AsyncTaskPool<()>,
+    influxdb: Res<InfluxDB>,
+    game_date: Res<GameDate>,
+    day_changed: EventReader<DateChanged>,
+    mut deaths: EventReader<CitizenDied>
+) {
+    let records = CitizenDiedRecord::from_events(
+        &game_date.date, deaths.read().collect()
+    );
+
+    to_influx_vec(task_pool, &influxdb, records, day_changed);
+}

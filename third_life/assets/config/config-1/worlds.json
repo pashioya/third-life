@@ -4,10 +4,25 @@
             "name": "Earth",
             "world_position": [-300, 0],
             "population": {
-                "size": 1000,
-                "location": 18.0,
-                "scale": 12.0,
-                "shape": 10.0
+                "population_size": 1000,
+                "population_dist": {
+                    "location": 18.0,
+                    "scale": 12.0,
+                    "shape": 10.0
+                },
+                "life_expectancy_spread": 6,
+                "weight_dist": {
+                    "average": 70
+                },
+                "height_dist": {
+                    "average": 175
+                },
+                "diet_macro_ratios": {
+                    "protein": 20,
+                    "fat": 30,
+                    "carbs": 50
+
+                }
             },
             "government": {
                 "citizen_payout": 0.5,
@@ -37,10 +52,12 @@
             "name": "Mars",
             "world_position": [0, 0],
             "population": {
-                "size": 1000,
-               "location": 18.0,
-                "scale": 24.0,
-                "shape": 10.0 
+                "population_size": 1000,
+                "population_dist": {
+                    "location": 18.0,
+                    "scale": 24.0,
+                    "shape": 10.0 
+                }
             },
             "government": {
                 "citizen_payout": 0.5,
@@ -66,10 +83,12 @@
             "name": "Saturn",
             "world_position": [300, 0],
             "population": {
-                "size": 1000,
-                "location": 18.0,
-                "scale": 6.0,
-                "shape": 10.0 
+                "population_size": 1000,
+                "population_dist": {
+                    "location": 18.0,
+                    "scale": 6.0,
+                    "shape": 10.0 
+                }
             },
             "government": {
                 "citizen_payout": 0.5,

@@ -42,18 +42,14 @@ pub fn citizen_births(
     for _ in event_reader.read() {
         for (entity, _, pregnancy, citizen_of) in &mut pregnant_women.iter_mut() {
             if pregnancy.baby_due_date == game_date.date {
-                for colony in &colonies {
+                for colony in colonies.iter() {
                     if citizen_of.colony == colony {
                         let name_rng = RNG::try_from(&Language::Roman).unwrap();
-
-                        let new_born = Citizen {
-                            name: name_rng.generate_name(),
-                            birthday: game_date.date
-                        };
+                        let name = name_rng.generate_name();
 
                         match roll_chance(50) {
-                            true => commands.spawn((new_born, CitizenOf { colony }, Youngling, Male)),
-                            false => commands.spawn((new_born, CitizenOf { colony }, Youngling, Female { children_had: 0 } )),
+                            true => commands.spawn(MaleCitizenBundle::new(name, colony, game_date.date)),
+                            false => commands.spawn(FemaleCitizenBundle::new(name, colony, game_date.date)),
                         };
 
                         event_writer.send(CitizenCreated { age: 0, colony });

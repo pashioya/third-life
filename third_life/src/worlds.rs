@@ -5,16 +5,24 @@ pub(crate) mod ui;
 pub(crate) mod env_and_infra;
 pub(crate) mod wealth;
 
-
-
-use bevy::{prelude::*, ecs::world};
+use bevy::{ecs::world, prelude::*};
 
 use crate::{
-    SimulationState, animation::{AnimationIndex, SpriteSize, AnimationTimer, ColonyAnimationBundle}, config::SelectedConfigPath,
+    animation::{AnimationIndex, AnimationTimer, ColonyAnimationBundle, SpriteSize},
+    config::SelectedConfigPath,
+    SimulationState,
 };
 
 use self::{
-    config::{SpriteConfig, WorldConfig, WorldsConfig, WorldsConfigPlugin}, env_and_infra::{components::ColonyInfraAndEnvBundle, InfrastructurePlugin}, food::FoodPlugin, population::{components::Population, PopulationPlugin}, ui::WorldsUiPlugin, wealth::{components::{ColonyWealthBundle, WealthAndSpending}, WealthPlugin}
+    config::{SpriteConfig, WorldConfig, WorldsConfig, WorldsConfigPlugin},
+    env_and_infra::{components::ColonyInfraAndEnvBundle, InfrastructurePlugin},
+    food::FoodPlugin,
+    population::{components::{DietMacroRatios, Population}, PopulationPlugin},
+    ui::WorldsUiPlugin,
+    wealth::{
+        components::{ColonyWealthBundle, WealthAndSpending},
+        WealthPlugin,
+    },
 };
 
 pub struct WorldsPlugin;
@@ -23,14 +31,15 @@ impl Plugin for WorldsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(SimulationState::Running), init_colonies)
             .add_plugins((
-                WorldsConfigPlugin, PopulationPlugin, FoodPlugin, WorldsUiPlugin, 
-                InfrastructurePlugin, WealthPlugin
+                WorldsConfigPlugin,
+                PopulationPlugin,
+                FoodPlugin,
+                WorldsUiPlugin,
+                InfrastructurePlugin,
+                WealthPlugin,
             ));
-
     }
 }
-
-
 
 pub(crate) fn init_colonies(
     mut commands: Commands,
@@ -46,21 +55,27 @@ pub(crate) fn init_colonies(
             config_path.0,
             world.sprite().sprite_sheet()
         ));
-        commands.spawn(WorldColonyBundle::new(
+        commands
+            .spawn(WorldColonyBundle::new(
                 texture,
                 &mut texture_atlas_layouts,
-                world.clone()
-        )).with_children(|parent| {
-            parent.spawn(
-                Text2dBundle {
-                    text: Text::from_section(world.name(), TextStyle { 
-                        font: font.clone(), font_size: 24., color: Color::WHITE 
-                    }).with_justify(JustifyText::Center),
-                    transform: Transform::from_xyz(0.,-1. * world.sprite().shape().0 as f32, 0.),
+                world.clone(),
+            ))
+            .with_children(|parent| {
+                parent.spawn(Text2dBundle {
+                    text: Text::from_section(
+                        world.name(),
+                        TextStyle {
+                            font: font.clone(),
+                            font_size: 24.,
+                            color: Color::WHITE,
+                        },
+                    )
+                    .with_justify(JustifyText::Center),
+                    transform: Transform::from_xyz(0., -1. * world.sprite().shape().0 as f32, 0.),
                     ..default()
-                }
-            );
-        });
+                });
+            });
     }
 }
 
@@ -89,27 +104,29 @@ pub struct WorldColonyBundle {
     animation: ColonyAnimationBundle,
     wealth: ColonyWealthBundle,
     infra_and_env: ColonyInfraAndEnvBundle,
-    config: WorldConfig
+    config: WorldConfig,
 }
 
 impl WorldColonyBundle {
     pub fn new(
         sprite_sheet: Handle<Image>,
-        mut texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
-        world: WorldConfig
+        texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
+        world: WorldConfig,
     ) -> Self {
-        Self { 
+        Self {
             colony: WorldColony,
             entity: WorldEntity::new(world.name()),
             population: Population::default(),
             animation: ColonyAnimationBundle::new(
-                world.name(), world.world_position(), 
-                sprite_sheet, texture_atlas_layouts,
-                world.sprite()
+                world.name(),
+                world.world_position(),
+                sprite_sheet,
+                texture_atlas_layouts,
+                world.sprite(),
             ),
             wealth: ColonyWealthBundle::new(world.government()),
             infra_and_env: ColonyInfraAndEnvBundle::default(),
-            config: world
+            config: world,
         }
     }
 }

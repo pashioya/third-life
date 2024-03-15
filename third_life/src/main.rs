@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Simulation of worlds and their inhabitatnts. Models a number of things
 //! which have been researched but still dumbed down to make them easier to
 //! implement. For more details check out the [Gitlab Wiki](https://gitlab.com/groups/kdg-ti/the-lab/teams-23-24/third-life/-/wikis/home)
