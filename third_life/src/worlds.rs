@@ -80,7 +80,20 @@ fn init_colonies(
 }
 
 #[derive(Component, PartialEq)]
-pub struct WorldColony;
+pub struct WorldColony {
+    size: f32,
+    used: f32,
+}
+
+impl WorldColony {
+    fn new(starting_size: f32) -> Self {
+       WorldColony { size: starting_size, used: 0.0 } 
+    }
+
+    fn space_left(&self) -> f32 {
+        self.size-self.used
+    }
+}
 
 #[derive(Component)]
 pub struct WorldEntity {
@@ -114,7 +127,7 @@ impl WorldColonyBundle {
         world: WorldConfig,
     ) -> Self {
         Self {
-            colony: WorldColony,
+            colony: WorldColony::new(world.size()),
             entity: WorldEntity::new(world.name()),
             population: Population::default(),
             animation: ColonyAnimationBundle::new(

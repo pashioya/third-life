@@ -22,6 +22,8 @@ pub struct WorldConfig {
     /// Name should be unique, since its used for identification of multiple 
     /// things.
     name: String,
+    #[def(300.0)]
+    size: Option<f32>,
     world_position: (isize, isize),
     #[def(PopulationConfig::def_conf())]
     population: Option<PopulationConfig>,

@@ -7,6 +7,18 @@ pub struct WorldUi;
 #[derive(Component)]
 pub struct WorldUiName(pub String);
 
+#[derive(Component)]
+pub struct WorldUiSize {
+    pub size: f32,
+    pub used: f32,
+}
+
+impl WorldUiSize{
+    fn new(size: f32) -> Self {
+        WorldUiSize{ size, used: 0.0}
+    }
+}
+
 #[derive(Component, PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct WorldUiEntity(pub Entity);
 
@@ -35,7 +47,7 @@ impl PopulationDeathLines {
             timer: Timer::from_seconds(0.5, TimerMode::Repeating),
             old_age_deaths: vec![0],
             starvation_deaths: vec![0],
-            infant_deaths: vec![0]
+            infant_deaths: vec![0],
         }
     }
     pub fn new_step(&mut self, delta: Duration) {
@@ -56,7 +68,6 @@ impl PopulationDeathLines {
     }
 }
 
-
 #[derive(Component)]
 pub struct ResourceStorage {
     pub timer: Timer,
@@ -68,20 +79,21 @@ impl ResourceStorage {
     pub fn new() -> Self {
         Self {
             timer: Timer::from_seconds(0.5, TimerMode::Repeating),
-            meat: vec![0.], carb: vec![0.]
+            meat: vec![0.],
+            carb: vec![0.],
         }
     }
 }
 #[derive(Component, Default)]
 pub struct ResourceConsumption {
     pub meat: f32,
-    pub carb: f32
+    pub carb: f32,
 }
 
 #[derive(Component, Default)]
 pub struct ResourceProduction {
     pub meat: f32,
-    pub carb: f32
+    pub carb: f32,
 }
 
 #[derive(Component, Default)]
@@ -94,6 +106,7 @@ pub struct FarmsCount {
 pub struct WorldUiBundle {
     pub ui: WorldUi,
     pub name: WorldUiName,
+    pub size: WorldUiSize,
     pub entity: WorldUiEntity,
     pub pop: PopulationHistogram,
     pub deaths: PopulationDeathLines,
@@ -104,12 +117,21 @@ pub struct WorldUiBundle {
 }
 
 impl WorldUiBundle {
-    pub fn new(name: String, entity: Entity) -> Self {
-        Self { 
+    pub fn new(name: String, entity: Entity, size: f32) -> Self {
+        Self {
             ui: WorldUi,
             name: WorldUiName(name),
+            size: WorldUiSize::new(size),
             entity: WorldUiEntity(entity),
-            pop: PopulationHistogram { count: 0, working_pop: 0, younglings: 0, retirees: 0, average_age: 0, ages: HashMap::new(), average_children_per_mother: 0.0},
+            pop: PopulationHistogram {
+                count: 0,
+                working_pop: 0,
+                younglings: 0,
+                retirees: 0,
+                average_age: 0,
+                ages: HashMap::new(),
+                average_children_per_mother: 0.0,
+            },
             deaths: PopulationDeathLines::new(),
             farms_count: FarmsCount::default(),
             prod: ResourceProduction::default(),

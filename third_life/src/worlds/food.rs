@@ -22,9 +22,6 @@ use chrono::Months;
 use rand_distr::num_traits::Float;
 
 use super::config::WorldConfig;
-use super::config::WorldsConfig;
-use super::population::components::CarbConsumed;
-use super::population::components::MeatConsumed;
 use super::{init_colonies, population::components::CitizenOf, WorldColony};
 
 pub struct FoodPlugin;
@@ -69,61 +66,69 @@ impl Plugin for FoodPlugin {
 fn init_food(
     mut commands: Commands,
     game_date: Res<GameDate>,
-    colonies: Query<(Entity, &WorldConfig), With<WorldColony>>,
+    mut colonies: Query<(Entity, &mut WorldColony, &WorldConfig), With<WorldColony>>,
 ) {
-    for (colony_entity, world_config) in colonies.iter() {
+    for (colony_entity, mut world_colony, world_config) in colonies.iter_mut() {
         let mut wheat_farms = Vec::new();
+        let wheat_farm_size = 17.4;
         for _ in 0..world_config.food().wheat_farms() {
-            wheat_farms.push((
-                WheatFarm {
-                    size: 17.4,
-                    harvested: 17.4,
-                },
-                WheatFarmOf {
-                    colony: colony_entity,
-                },
-            ));
+            if world_colony.space_left() > wheat_farm_size {
+                world_colony.used += wheat_farm_size;
+                wheat_farms.push((
+                    WheatFarm {
+                        size: wheat_farm_size,
+                        harvested: wheat_farm_size,
+                    },
+                    WheatFarmOf {
+                        colony: colony_entity,
+                    },
+                ));
+            }
         }
         commands.spawn_batch(wheat_farms);
 
+        let cow_farm_size = 34.0;
         for _ in 0..world_config.food().cow_farms() {
-            let cow_farm_entity = commands
-                .spawn((
-                    CowFarm { size: 34.0 },
-                    CowFarmOf {
-                        colony: colony_entity,
-                    },
-                ))
-                .id();
-            let mut cows = Vec::new();
-            let mut bulls = Vec::new();
-            //47 is min starting cows and we want to have 10 ready to harvest right away
-            let total_cows = 57.0;
-            let total_bulls = (total_cows / 25.0).ceil() as usize;
-            for _ in 0..total_bulls {
-                bulls.push((
-                    Cow {
-                        birthday: game_date.date - Months::new(24),
-                    },
-                    IsBull,
-                    IsBreeder,
-                    CowOf {
-                        cow_farm: cow_farm_entity,
-                    },
-                ))
+            if world_colony.space_left() > cow_farm_size {
+                world_colony.used += cow_farm_size;
+                let cow_farm_entity = commands
+                    .spawn((
+                        CowFarm { size: cow_farm_size },
+                        CowFarmOf {
+                            colony: colony_entity,
+                        },
+                    ))
+                    .id();
+                let mut cows = Vec::new();
+                let mut bulls = Vec::new();
+                //47 is min starting cows and we want to have 10 ready to harvest right away
+                let total_cows = 57.0;
+                let total_bulls = (total_cows / 25.0).ceil() as usize;
+                for _ in 0..total_bulls {
+                    bulls.push((
+                        Cow {
+                            birthday: game_date.date - Months::new(24),
+                        },
+                        IsBull,
+                        IsBreeder,
+                        CowOf {
+                            cow_farm: cow_farm_entity,
+                        },
+                    ))
+                }
+                commands.spawn_batch(bulls);
+                for _ in 0..(total_cows as usize - total_bulls) {
+                    cows.push((
+                        Cow {
+                            birthday: game_date.date - Months::new(24),
+                        },
+                        CowOf {
+                            cow_farm: cow_farm_entity,
+                        },
+                    ))
+                }
+                commands.spawn_batch(cows);
             }
-            commands.spawn_batch(bulls);
-            for _ in 0..(total_cows as usize - total_bulls) {
-                cows.push((
-                    Cow {
-                        birthday: game_date.date - Months::new(24),
-                    },
-                    CowOf {
-                        cow_farm: cow_farm_entity,
-                    },
-                ))
-            }
-            commands.spawn_batch(cows);
         }
 
         commands.spawn((
