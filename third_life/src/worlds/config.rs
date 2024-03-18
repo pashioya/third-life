@@ -42,6 +42,11 @@ pub struct PopulationConfig {
     /// Starting number of Peple. Any Real number
     #[def(1000)]
     population_size: Option<u32>,
+    ///age of adult and retirement
+    #[def(18)]
+    age_of_adult: Option<usize>,
+    #[def(65)]
+    age_of_retirement: Option<usize>,
 
     #[def(PopulationDistributionConfig::def_conf())]
     population_dist: Option<PopulationDistributionConfig>,
@@ -132,6 +137,9 @@ pub struct FoodConfig {
     starting_carb: Option<f32>,
     #[def(1.0)]
     min_surplus_multiplier: Option<f32>,
+    #[def(5.0)]
+    max_surplus_multiplier: Option<f32>,
+
 }
 
 #[derive(Deserialize, Debug, Clone, Resource, Default, Config)]

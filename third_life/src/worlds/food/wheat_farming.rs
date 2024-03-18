@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::{hashbrown::HashMap}};
 use chrono::{Datelike, NaiveDate};
 
 use crate::{
@@ -29,8 +29,12 @@ pub fn season_check_wheat(
         }
     }
 }
-pub fn check_for_more_wheat_farms(
+
+
+pub fn check_wheat_farms_counts(
     mut commands: Commands,
+    wheat_farms: Query<(Entity, &WheatFarmOf), With<WheatFarm>>,
+    farm_workers: Query<(Entity, &WheatFarmer)>,
     mut colonies: Query<(
         Entity,
         &mut WorldColony,
@@ -46,6 +50,26 @@ pub fn check_for_more_wheat_farms(
         .map(|(e, r)| (e.colony, r))
         .collect::<HashMap<_, _>>();
 
+    let mut farms_map = wheat_farms
+        .iter()
+        .fold(
+            HashMap::new(),
+            |mut acc: HashMap<Entity, Vec<Entity>>, (farm_entity, wheat_farm_of)| {
+                acc.entry(wheat_farm_of.colony).or_insert(Vec::new()).push(farm_entity);
+                acc
+            },
+        );
+
+    let farmers_map = farm_workers
+        .iter()
+        .fold(
+            HashMap::new(),
+            |mut acc: HashMap<Entity, Vec<Entity>>, (farmer_entity, wheat_farmer)| {
+                acc.entry(wheat_farmer.farm).or_insert(Vec::new()).push(farmer_entity);
+                acc
+            },
+        );
+    
     for _ in year_changed_reader.read() {
         for (colony, mut world_colony, mut carb_consumed, mut carb_produced, world_config) in
             colonies.iter_mut()
@@ -64,6 +88,27 @@ pub fn check_for_more_wheat_farms(
                     ));
                 }
             }
+
+            /* this could be used for despawning later
+            let max_surplus = world_config.food().max_surplus_multiplier();
+
+            if carb_consumed.amount*max_surplus < resource_map.get(&colony).unwrap().get_kgs() {
+                //TODO why is this Vec not mutable?
+                if let Some(farm) = farms_map.get_mut(&colony).unwrap().pop() {
+                    for farmer_entity in farmers_map.get(&farm).unwrap() {
+                        let _ = commands.get_entity(*farmer_entity)
+                            .map(|mut e| {
+                                e.remove::<WheatFarmer>();
+                                e.remove::<Employed>();
+                            });
+                    } 
+                    commands.get_entity(farm).map(|mut e| {
+                        e.despawn(); 
+                    });
+                    world_colony.used -= wheat_farm_size;
+                }
+            }*/
+
             carb_consumed.amount = 0.0;
             carb_produced.amount = 0.0;
         }

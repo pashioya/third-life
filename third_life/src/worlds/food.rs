@@ -39,7 +39,7 @@ impl Plugin for FoodPlugin {
                 breed_cows,
                 check_farm_workers,
                 get_farm_workers,
-                check_for_more_wheat_farms,
+                check_wheat_farms_counts,
                 work_farm,
                 check_cow_farm_workers,
                 get_cow_farm_workers,

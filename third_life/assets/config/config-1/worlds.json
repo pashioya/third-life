@@ -5,6 +5,8 @@
             "world_position": [-300, 0],
             "population": {
                 "population_size": 500,
+                "age_of_adult": 18,
+                "age_of_retirement": 65,
                 "population_dist": {
                     "location": 18.0,
                     "scale": 12.0,

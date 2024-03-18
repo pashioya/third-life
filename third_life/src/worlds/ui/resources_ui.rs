@@ -109,8 +109,14 @@ fn update_ui_farms_count(
     );
 
     for (world_ui_entity, mut farms_count) in ui_data.iter_mut() {
-        farms_count.meat = cow_farms_map.get(&world_ui_entity.0).unwrap().clone();
-        farms_count.carb = wheat_farms_map.get(&world_ui_entity.0).unwrap().clone();
+        farms_count.meat = match cow_farms_map.get(&world_ui_entity.0) {
+            Some(cow_farms_count) => cow_farms_count.clone(),
+            None => 0
+        };
+        farms_count.carb = match wheat_farms_map.get(&world_ui_entity.0) {
+            Some(wheat_farms_count) => wheat_farms_count.clone(),
+            None => 0
+        };
     }
 }
 

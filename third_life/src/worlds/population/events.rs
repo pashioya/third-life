@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use chrono::NaiveDate;
 
 #[derive(Event)]
 pub struct CitizenCreated {
@@ -33,6 +32,7 @@ impl CitizenDied {
 #[derive(Event)]
 pub struct CitizenBirthday {
     pub entity: Entity,
+    pub colony: Entity,
     pub age: usize
 }
 
