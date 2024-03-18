@@ -1,35 +1,36 @@
-
 use bevy::{prelude::*, utils::warn};
 
 use crate::worlds::config::GovernmentConfig;
 
 #[derive(Bundle)]
 pub struct ColonyWealthBundle {
-    gdp: WealthAndSpending,
+    treasury: Treasury,
 }
 
 impl ColonyWealthBundle {
     pub fn new(government: GovernmentConfig) -> Self {
-        ColonyWealthBundle { 
-            gdp: WealthAndSpending { 
+        ColonyWealthBundle {
+            treasury: Treasury {
                 total_wealth: 0.,
+                old_wealth: 0.,
                 spending_available: 0.,
                 citizen_payout: government.citizen_payout(),
-                policy: SpendingPolicy { 
+                policy: SpendingPolicy {
                     civil_spending: government.civil_spending(),
                     sanitation_spending: government.sanitation_spending(),
                     social_spending: government.social_spending(),
-                    environmental_spending: government.environmental_spending()
-                }
-            } 
+                    environmental_spending: government.environmental_spending(),
+                },
+            },
         }
     }
 }
 
-#[derive(Component, Default)]
-pub struct WealthAndSpending {
+#[derive(Component, Default, Debug)]
+pub struct Treasury {
     pub total_wealth: f32,
-    /// 0 to 1 number that reppresents how many percent of total gdp are 
+    pub old_wealth: f32,
+    /// 0 to 1 number that reppresents how many percent of total gdp are
     /// available to be used for spending
     pub spending_available: f32,
     /// 0 to 1 value that each citizen gets payed
@@ -37,13 +38,14 @@ pub struct WealthAndSpending {
     pub policy: SpendingPolicy,
 }
 
-impl WealthAndSpending {
+impl Treasury {
     /// Each citizen gets a payout according to [`Self::citizen_payout`] which
     /// leaves us with a share of the money made to use as gdp
-    pub fn calc(&mut self, working: usize, population_count: usize) {
+    pub fn update(&mut self, working: usize, population_count: usize) {
         let population_count = population_count as f32;
+        self.old_wealth = self.total_wealth;
         self.total_wealth = working as f32;
-        self.spending_available =  self.total_wealth - (population_count * self.citizen_payout);
+        self.spending_available = self.total_wealth - (population_count * self.citizen_payout);
     }
     pub fn total_civil_spending(&self) -> f32 {
         Self::to_01(self.policy.civil_spending) * self.spending_available
@@ -65,7 +67,7 @@ impl WealthAndSpending {
 /// Contains percentages of how the remaining gdp should be spent. The
 /// numbers schould all be between 0 and 100 and in total come together
 /// to be 100 when added up
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SpendingPolicy {
     civil_spending: usize,
     sanitation_spending: usize,
@@ -73,6 +75,4 @@ pub struct SpendingPolicy {
     environmental_spending: usize,
 }
 
-impl SpendingPolicy {
-    
-}
+impl SpendingPolicy {}

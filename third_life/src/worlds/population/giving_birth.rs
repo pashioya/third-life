@@ -1,33 +1,36 @@
-use std::{f32::consts, iter::zip};
 use crate::{
     common::utils::roll_chance,
     time::{DateChanged, GameDate, MonthChanged},
-    SimulationState, worlds::WorldColony,
+    worlds::{
+        env_and_infra::components::{CivilInfrastructure, SanitationInfrastructure},
+        wealth::components::Treasury,
+        WorldColony,
+    },
+    SimulationState,
 };
-use bevy::{prelude::*, transform::commands};
-use bevy_egui::{egui::{Window, ahash::{HashMap, HashMapExt}}, EguiContexts};
-use chrono::{Datelike, NaiveDate};
-use rand::{thread_rng, Rng, rngs::ThreadRng};
-use rand_distr::{num_traits::{Float, real::Real}, Distribution, SkewNormal};
+use bevy::prelude::*;
+use bevy_egui::egui::ahash::{HashMap, HashMapExt};
+use rand::{thread_rng, Rng};
 use rnglib::{Language, RNG};
 
-use super::{events::*, components::*};
+use super::{components::*, events::*};
 
 pub struct GivingBirthPlugin;
 
 impl Plugin for GivingBirthPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
-                Update,(
-                    init_ovulation,
-                    end_ovulation,
-                    init_miscarriage,
-                    init_pregnancies,
-                    citizen_births,
-                ).run_if(in_state(SimulationState::Running))
+        app.add_systems(
+            Update,
+            (
+                init_ovulation,
+                end_ovulation,
+                init_miscarriage,
+                init_pregnancies,
+                citizen_births,
             )
-            .add_event::<CitizenCreated>();
+                .run_if(in_state(SimulationState::Running)),
+        )
+        .add_event::<CitizenCreated>();
     }
 }
 
@@ -35,23 +38,35 @@ pub fn citizen_births(
     mut commands: Commands,
     mut event_reader: EventReader<DateChanged>,
     mut event_writer: EventWriter<CitizenCreated>,
-    mut pregnant_women: Query<(Entity, &mut Citizen, &mut Pregnancy, &CitizenOf), With<Pregnancy>>,
-    colonies: Query<Entity, With<WorldColony>>,
+    mut pregnant_women: Query<(Entity, &mut Female, &mut Pregnancy, &CitizenOf), With<Pregnancy>>,
+    colonies: Query<(Entity, &SanitationInfrastructure), With<WorldColony>>,
     game_date: Res<GameDate>,
 ) {
     for _ in event_reader.read() {
-        for (entity, _, pregnancy, citizen_of) in &mut pregnant_women.iter_mut() {
+        for (entity, mut w_female, pregnancy, citizen_of) in &mut pregnant_women.iter_mut() {
             if pregnancy.baby_due_date == game_date.date {
-                for colony in colonies.iter() {
+                for (colony, sanitation_infra) in colonies.iter() {
                     if citizen_of.colony == colony {
+                        // No live birth if live birth mortality rate is too high
+                        if roll_chance(
+                            ((sanitation_infra.live_birth_mortality_rate / 1000.0) * 100.0) as u8,
+                        ) {
+                            continue;
+                        }
                         let name_rng = RNG::try_from(&Language::Roman).unwrap();
                         let name = name_rng.generate_name();
 
                         match roll_chance(50) {
-                            true => commands.spawn((MaleCitizenBundle::new(name, colony, game_date.date),Youngling)),
-                            false => commands.spawn((FemaleCitizenBundle::new(name, colony, game_date.date), Youngling)),
+                            true => commands.spawn((
+                                MaleCitizenBundle::new(name, colony, game_date.date),
+                                Youngling,
+                            )),
+                            false => commands.spawn((
+                                FemaleCitizenBundle::new(name, colony, game_date.date),
+                                Youngling,
+                            )),
                         };
-
+                        w_female.children_had += 1;
                         event_writer.send(CitizenCreated { age: 0, colony });
                     }
                 }
@@ -139,20 +154,39 @@ pub fn init_pregnancies(
     mut commands: Commands,
     game_date: Res<GameDate>,
     mut event_reader: EventReader<DateChanged>,
-    mut citizens: Query<
-        (Entity, &mut Citizen),
-        (
-            With<Ovulation>,
-            With<Female>,
-            With<Spouse>,
-            Without<Pregnancy>,
-        ),
+    infra: Query<(
+        Entity,
+        &Treasury,
+        &CivilInfrastructure,
+        &SanitationInfrastructure,
+    )>,
+    citizens: Query<
+        (Entity, &Citizen, &CitizenOf, &Female),
+        (With<Ovulation>, With<Spouse>, Without<Pregnancy>),
     >,
 ) {
     for _ in event_reader.read() {
-        for (w_entity, w_citizen) in &mut citizens {
-            if pregnancy_desire() {
+        let infra_map = infra.iter().fold(
+            HashMap::new(),
+            |mut acc, (colony_entity, treasury, w_civil_infra, w_san_infra)| {
+                acc.insert(colony_entity, (treasury, w_civil_infra, w_san_infra));
+                acc
+            },
+        );
+
+        for (w_entity, w_citizen, citizen_of, female) in &citizens {
+            let (w_treasury, w_civil_infra, w_san_infra) =
+                infra_map.get(&citizen_of.colony).unwrap();
+
+            if pregnancy_desire(
+                w_treasury.total_wealth,
+                w_treasury.old_wealth,
+                w_civil_infra.urbanization_index,
+                female.children_had,
+                w_san_infra.live_birth_mortality_rate,
+            ) {
                 if pregnancy_chance(game_date.date.years_since(w_citizen.birthday).unwrap() as u8) {
+                    // println!("{} is pregnant", w_citizen.name);
                     let pregnancy_term = thread_rng().gen_range(270..=280);
                     commands.get_entity(w_entity).map(|mut e| {
                         e.try_insert(Pregnancy {
@@ -178,18 +212,22 @@ pub fn pregnancy_chance(age: u8) -> bool {
     roll_chance(pregnancy_chance as u8)
 }
 
-pub fn pregnancy_desire() -> bool {
-    let economy: f32 = thread_rng().gen_range(0.0..=1.0);
-    let urbanization: f32 = thread_rng().gen_range(0.0..=1.0);
-    let demand: f32 = thread_rng().gen_range(0.0..=1.0);
-    let survivability: f32 = thread_rng().gen_range(0.0..=1.0);
-
-    let mut preg_chance =
-        2.1 * urbanization * (economy / economy) * demand * (1.0 - urbanization) * survivability;
-
-    preg_chance = preg_chance * 100.0;
-
+pub fn pregnancy_desire(
+    economy_t: f32,
+    economy_tm1: f32,
+    urbanization: f32,
+    number_of_children: usize,
+    survivability: f32,
+) -> bool {
+    let demand = 0.8;
+    let mut preg_chance = (2.1
+        * urbanization
+        * (economy_t / economy_tm1)
+        * demand
+        * (1.0 - urbanization)
+        * survivability)
+        .abs();
+    // adjust the pregnancy chance by reducing it by 50% for each child
+    preg_chance = preg_chance * (1.0 - 0.5f32).powi(number_of_children as i32) * 100000.0;
     roll_chance(preg_chance as u8)
 }
-
-

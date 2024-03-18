@@ -17,10 +17,13 @@ use self::{
     config::{SpriteConfig, WorldConfig, WorldsConfig, WorldsConfigPlugin},
     env_and_infra::{components::ColonyInfraAndEnvBundle, InfrastructurePlugin},
     food::FoodPlugin,
-    population::{components::{DietMacroRatios, Population}, PopulationPlugin},
+    population::{
+        components::{DietMacroRatios, Population},
+        PopulationPlugin,
+    },
     ui::WorldsUiPlugin,
     wealth::{
-        components::{ColonyWealthBundle, WealthAndSpending},
+        components::{ColonyWealthBundle, Treasury},
         WealthPlugin,
     },
 };
@@ -87,11 +90,14 @@ pub struct WorldColony {
 
 impl WorldColony {
     fn new(starting_size: f32) -> Self {
-       WorldColony { size: starting_size, used: 0.0 } 
+        WorldColony {
+            size: starting_size,
+            used: 0.0,
+        }
     }
 
     fn space_left(&self) -> f32 {
-        self.size-self.used
+        self.size - self.used
     }
 }
 
