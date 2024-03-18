@@ -29,8 +29,7 @@ use rnglib::{Language, RNG};
 use self::{food_consumption::FoodConsumptionPlugin, growing::GrowingPlugin};
 
 use super::{
-    config::{WorldConfig, WorldsConfig},
-    init_colonies, WorldColony, WorldEntity,
+    config::{WorldConfig, WorldsConfig}, food::components::{CowFarmer, WheatFarmer}, init_colonies, WorldColony, WorldEntity
 };
 
 pub struct PopulationPlugin;
@@ -168,17 +167,18 @@ pub fn update_population(
 pub fn check_birthdays(
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut birthday_events: EventWriter<CitizenBirthday>,
-    citizens: Query<(Entity, &Citizen)>,
+    citizens: Query<(Entity, &Citizen, &CitizenOf)>,
 ) {
     for day_changed_event in day_changed_event_reader.read() {
         let game_date = day_changed_event.date;
-        for (citizen_entity, citizen) in citizens.iter() {
+        for (citizen_entity, citizen, citizen_of) in citizens.iter() {
             if game_date.month() == citizen.birthday.month()
                 && game_date.day() == citizen.birthday.day()
             {
                 birthday_events.send(CitizenBirthday {
                     entity: citizen_entity,
-                    age: game_date.years_since(citizen.birthday).unwrap() as usize,
+                    colony: citizen_of.colony,
+                    age: game_date.years_since(citizen.birthday).unwrap() as usize
                 });
             }
         }
@@ -188,24 +188,32 @@ pub fn check_birthdays(
 pub fn come_of_age(
     mut commands: Commands,
     mut birthday_event_reader: EventReader<CitizenBirthday>,
+    colonies: Query<(Entity, &WorldConfig)>
 ) {
     for birthday in birthday_event_reader.read() {
-        if birthday.age == 18 {
+        let config = colonies.get(birthday.colony).unwrap().1;
+        if birthday.age == config.population().age_of_adult() {
             commands.get_entity(birthday.entity).map(|mut e| {
                 e.remove::<Youngling>();
             });
-            warn!("{:?} became of age", birthday.entity);
         }
     }
 }
 
-pub fn retirement(mut commands: Commands, mut birthday_event_reader: EventReader<CitizenBirthday>) {
+pub fn retirement(
+    mut commands: Commands,
+    mut birthday_event_reader: EventReader<CitizenBirthday>,
+    colonies: Query<(Entity, &WorldConfig)>
+) {
     for birthday in birthday_event_reader.read() {
-        if birthday.age == 65 {
+        let config = colonies.get(birthday.colony).unwrap().1;
+        if birthday.age == config.population().age_of_retirement() {
             commands.get_entity(birthday.entity).map(|mut e| {
-                e.remove::<Youngling>();
+                e.remove::<WheatFarmer>();
+                e.remove::<CowFarmer>();
+                e.remove::<Employed>();
+                e.try_insert(Retiree);
             });
-            warn!("{:?} retired", birthday.entity);
         }
     }
 }
