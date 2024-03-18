@@ -1,16 +1,24 @@
 use bevy::{prelude::*, utils::HashMap};
 use chrono::{Datelike, NaiveDate};
 
-use crate::{time::{DateChanged, GameDate, YearChanged}, worlds::{config::WorldConfig, population::components::{CarbConsumed, CitizenOf, Employed}, WorldColony}};
+use crate::{
+    time::{DateChanged, GameDate, YearChanged},
+    worlds::{
+        config::WorldConfig,
+        population::components::{CarbConsumed, Citizen, CitizenOf, Employed},
+        WorldColony,
+    },
+};
 
 use super::{
-    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer
+    tracking::CarbProduced, CarbCreated, CarbResource, CowFarmer, ResourceOf, WheatFarm,
+    WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer,
 };
 
 pub fn season_check_wheat(
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut wheat_farms: Query<&mut WheatFarm>,
-    game_date: Res<GameDate>
+    game_date: Res<GameDate>,
 ) {
     for _ in day_changed_event_reader.read() {
         if game_date.date.month() == 6 && game_date.date.day() == 1 {
@@ -23,7 +31,13 @@ pub fn season_check_wheat(
 }
 pub fn check_for_more_wheat_farms(
     mut commands: Commands,
-    mut colonies: Query<(Entity, &mut WorldColony, &mut CarbConsumed, &mut CarbProduced, &WorldConfig)>,
+    mut colonies: Query<(
+        Entity,
+        &mut WorldColony,
+        &mut CarbConsumed,
+        &mut CarbProduced,
+        &WorldConfig,
+    )>,
     carb_resources: Query<(&ResourceOf, &CarbResource)>,
     mut year_changed_reader: EventReader<YearChanged>,
 ) {
@@ -33,9 +47,11 @@ pub fn check_for_more_wheat_farms(
         .collect::<HashMap<_, _>>();
 
     for _ in year_changed_reader.read() {
-        for (colony, mut world_colony, mut carb_consumed, mut carb_produced, world_config) in colonies.iter_mut() {
+        for (colony, mut world_colony, mut carb_consumed, mut carb_produced, world_config) in
+            colonies.iter_mut()
+        {
             let min_surplus = world_config.food().min_surplus_multiplier();
-            if carb_consumed.amount*min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
+            if carb_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
                 let wheat_farm_size = 17.4;
                 if world_colony.space_left() > wheat_farm_size {
                     world_colony.used += wheat_farm_size;

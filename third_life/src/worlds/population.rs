@@ -1,9 +1,9 @@
 pub mod components;
-pub mod events;
 mod dying;
+pub mod events;
 mod food_consumption;
-mod growing;
 mod giving_birth;
+mod growing;
 mod relationships;
 
 use components::*;
@@ -47,8 +47,11 @@ impl Plugin for PopulationPlugin {
                 .run_if(in_state(SimulationState::Running)),
         )
         .add_plugins((
-                GivingBirthPlugin, DeathsPlugin, RelationshipsPlugin,
-                FoodConsumptionPlugin, GrowingPlugin
+            GivingBirthPlugin,
+            DeathsPlugin,
+            RelationshipsPlugin,
+            FoodConsumptionPlugin,
+            GrowingPlugin,
         ))
         .add_event::<CitizenBirthday>();
     }
@@ -65,8 +68,11 @@ pub fn init_citizens(
         let mut rng = thread_rng();
         let name_rng = RNG::try_from(&Language::Roman).unwrap();
         let skew_normal = SkewNormal::new(
-            pop_config.population_dist().location(), pop_config.population_dist().scale(), pop_config.population_dist().shape()
-        ).unwrap();
+            pop_config.population_dist().location(),
+            pop_config.population_dist().scale(),
+            pop_config.population_dist().shape(),
+        )
+        .unwrap();
         let mut age_gen = skew_normal.sample_iter(&mut rng);
         let year = game_date.date.year_ce().1 as usize;
 
@@ -80,9 +86,9 @@ pub fn init_citizens(
 
             let citizen = Citizen {
                 name: name_rng.generate_name(),
-                birthday, 
+                birthday,
                 height: pop_config.height_dist().average(),
-                weight: pop_config.weight_dist().average()
+                weight: pop_config.weight_dist().average(),
             };
             if game_date.years_since(birthday).unwrap() >= 18 as u32 {
                 match roll_chance(50) {
@@ -115,7 +121,7 @@ pub fn update_population(
     working_pop: Query<&CitizenOf, (Without<Youngling>, Without<Retiree>, Without<Pregnancy>)>,
     younglings: Query<&CitizenOf, With<Youngling>>,
     retirees: Query<&CitizenOf, With<Retiree>>,
-    women: Query<(&Citizen, &CitizenOf, &Female)>,
+    women: Query<(&Citizen, &CitizenOf, &Female), Without<Youngling>>,
     game_date: Res<GameDate>,
 ) {
     for event in event_reader.read() {
@@ -148,6 +154,7 @@ pub fn update_population(
                         }
                     })
                     .collect();
+
                 population.average_children_per_mother = all_women_children_had.iter().sum::<f32>()
                     / all_women_children_had.len() as f32;
 
