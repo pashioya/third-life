@@ -56,6 +56,7 @@ pub struct MaleCitizenBundle {
     of: CitizenOf,
     male: Male,
     growing: StillGrowing,
+    youngling: Youngling,
 }
 
 impl MaleCitizenBundle {
@@ -64,7 +65,8 @@ impl MaleCitizenBundle {
     ) -> Self {
         Self { 
             citizen: Citizen { name, birthday, height: NEW_BORN_HEIGHT, weight: NEW_BORN_WEIGHT }, 
-            of: CitizenOf { colony }, male: Male, growing: StillGrowing
+            of: CitizenOf { colony }, male: Male, growing: StillGrowing,
+            youngling: Youngling
         }
     }
 }
@@ -75,6 +77,7 @@ pub struct FemaleCitizenBundle {
     of: CitizenOf,
     female: Female,
     growing: StillGrowing,
+    youngling: Youngling,
 }
 
 impl FemaleCitizenBundle {
@@ -84,7 +87,7 @@ impl FemaleCitizenBundle {
         Self { 
             citizen: Citizen { name, birthday, height: NEW_BORN_HEIGHT, weight: NEW_BORN_WEIGHT }, 
             of: CitizenOf { colony }, female: Female { children_had: 0 }, 
-            growing: StillGrowing
+            growing: StillGrowing, youngling: Youngling
         }
     }
 }

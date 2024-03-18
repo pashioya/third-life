@@ -31,6 +31,13 @@ impl Plugin for GivingBirthPlugin {
     }
 }
 
+fn get_randome_name() -> String {
+    let Ok(name_rng) = RNG::new(&Language::Elven) else {
+        return get_randome_name();
+    };
+    name_rng.generate_name()
+}
+
 pub fn citizen_births(
     mut commands: Commands,
     mut event_reader: EventReader<DateChanged>,
@@ -44,14 +51,11 @@ pub fn citizen_births(
             if pregnancy.baby_due_date == game_date.date {
                 for colony in colonies.iter() {
                     if citizen_of.colony == colony {
-                        let name_rng = RNG::try_from(&Language::Roman).unwrap();
-                        let name = name_rng.generate_name();
-
+                        let name = String::from("Name"); // get_randome_name();
                         match roll_chance(50) {
                             true => commands.spawn(MaleCitizenBundle::new(name, colony, game_date.date)),
                             false => commands.spawn(FemaleCitizenBundle::new(name, colony, game_date.date)),
                         };
-
                         event_writer.send(CitizenCreated { age: 0, colony });
                     }
                 }

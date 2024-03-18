@@ -1,91 +1,123 @@
-mod food_data;
-mod population_data;
 mod components;
+mod food_data;
+mod influx_conn;
+mod influx_types;
+mod population_data;
+mod postgres_conn;
 mod utils;
 
+use core::panic;
 
 use crate::SimulationState;
 use bevy::prelude::*;
-use chrono::Local;
-use influxdb2::api::organization::ListOrganizationRequest;
-use influxdb2::models::PostBucketRequest;
-use influxdb2::Client;
+use bevy_egui::egui::Window;
+use bevy_egui::EguiContexts;
 
-use bevy_async_task::{AsyncTaskRunner, AsyncTaskStatus};
-
-use self::components::InfluxDB;
-use self::food_data::{carb_consumption_recording, carb_recording, meat_consumption_recording, meat_recording};
+use self::components::{
+    InfluxDB, LoadedDatabaseEvent, LoadingDatabase, LoadingDatabases, RegisterDatabseEvent,
+    ShouldSaveToDatabase, SimulationUuid,
+};
+use self::food_data::{
+    carb_consumption_recording, carb_recording, meat_consumption_recording, meat_recording,
+};
+use self::influx_conn::InfluxDbPlugin;
 use self::population_data::{birth_recording, death_recording, population_recording};
+use self::postgres_conn::PostgresDbPlugin;
 
 pub struct DataAggPlugin;
 
 impl Plugin for DataAggPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
+        app.add_systems(
             Update,
-            init_influx_db.run_if(in_state(SimulationState::LoadingDatabase)),
+            (
+                population_recording,
+                birth_recording,
+                death_recording,
+                meat_recording,
+                carb_recording,
+                meat_consumption_recording,
+                carb_consumption_recording,
+            )
+                .run_if(in_state(SimulationState::Running))
+                .run_if(in_state(ShouldSaveToDatabase::Yes)),
         )
         .add_systems(
             Update,
-            (
-                population_recording, birth_recording, death_recording,
-                meat_recording, carb_recording,
-                meat_consumption_recording, carb_consumption_recording
-            ).run_if(in_state(SimulationState::Running)),
-        );
+            show_saving_choice.run_if(in_state(SimulationState::SaveToDatabaseChoice)),
+        )
+        .add_systems(
+            Update,
+            recive_databse_registrations.run_if(not(in_state(SimulationState::Running))),
+        )
+        .add_systems(
+            Update,
+            recive_finished_loading_database.run_if(in_state(SimulationState::LoadingDatabases)),
+        )
+        .add_event::<RegisterDatabseEvent>()
+        .add_event::<LoadedDatabaseEvent>()
+        .init_resource::<LoadingDatabases>()
+        .init_resource::<SimulationUuid>()
+        .init_state::<ShouldSaveToDatabase>()
+        .add_plugins((PostgresDbPlugin, InfluxDbPlugin));
     }
 }
 
+fn show_saving_choice(
+    mut contexts: EguiContexts,
+    mut next_state: ResMut<NextState<SimulationState>>,
+    mut should_save_state: ResMut<NextState<ShouldSaveToDatabase>>,
+) {
+    Window::new("choose whether to save to db or not").show(contexts.ctx_mut(), |ui| {
+        ui.horizontal(|ui| {
+            if ui.button("dont save data").clicked() {
+                should_save_state.set(ShouldSaveToDatabase::No);
+                next_state.set(SimulationState::FinishedLoadingDatabases);
+            }
+            if ui.button("save data").clicked() {
+                should_save_state.set(ShouldSaveToDatabase::Yes);
+                next_state.set(SimulationState::LoadingDatabases);
+            }
+        });
+    });
+}
 
-const INFLUX_DB_ORG_NAME: &'static str = "third-life-team";
+fn recive_databse_registrations(
+    mut event_reader: EventReader<RegisterDatabseEvent>,
+    mut loading_databases: ResMut<LoadingDatabases>,
+) {
+    for event in event_reader.read() {
+        if loading_databases.0.contains_key(&event.0) {
+            panic!("Database is beeing registered twice: {}", event.0);
+        }
+        loading_databases
+            .0
+            .insert(event.0.clone(), LoadingDatabase::Waiting);
+    }
+}
 
-fn init_influx_db(
-    mut commands: Commands,
-    mut task_executor: AsyncTaskRunner<InfluxDB>,
+fn recive_finished_loading_database(
+    mut event_reader: EventReader<LoadedDatabaseEvent>,
+    mut loading_databases: ResMut<LoadingDatabases>,
     mut next_state: ResMut<NextState<SimulationState>>,
 ) {
-    println!("Initializing DataAgg");
-
-    let init_infra_task = async move {
-        let client = Client::new("http://localhost:8086", "third-life-team", "admin-token");
-
-        let organization_id = client
-            .list_organizations(ListOrganizationRequest {
-                ..Default::default()
-            })
-            .await.unwrap().orgs.into_iter()
-            .filter(|org| org.name == INFLUX_DB_ORG_NAME)
-            .map(|org| org.id.clone().unwrap())
-            .next().unwrap();
-
-        let new_bucket_name = format!(
-            "third_life_sim_{}",
-            Local::now().format("%d/%m/%Y_%H:%M")
-        );
-
-        let result = client
-            .create_bucket(Some(PostBucketRequest::new(
-                organization_id,
-                new_bucket_name.clone(),
-            )))
-            .await;
-
-        println!(
-            "Task finished: InfluxDb client Initialization was successful?: {}",
-            result.is_ok()
-        );
-        InfluxDB::new(client, new_bucket_name)
-    };
-
-    match task_executor.poll() {
-        AsyncTaskStatus::Idle => task_executor.start(init_infra_task),
-        AsyncTaskStatus::Pending => (),
-        AsyncTaskStatus::Finished(influx_db) => {
-            commands.insert_resource(influx_db);
-            next_state.set(SimulationState::FinishedLoadingDatabase);
+    for event in event_reader.read() {
+        let Some(status) = loading_databases.0.get_mut(&event.0) else {
+            panic!("Database has not been registered: {}", event.0);
+        };
+        match status {
+            LoadingDatabase::Waiting => *status = LoadingDatabase::Recived,
+            _ => panic!(
+                "Database finished loading event has been sent out twice: {}",
+                event.0
+            ),
         }
     }
-
+    if loading_databases
+        .0
+        .iter()
+        .all(|(_, status)| *status == LoadingDatabase::Recived)
+    {
+        next_state.set(SimulationState::FinishedLoadingDatabases);
+    }
 }
-

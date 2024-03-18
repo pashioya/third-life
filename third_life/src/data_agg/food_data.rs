@@ -8,7 +8,7 @@ use bevy::tasks::futures_lite::stream;
 
 use bevy_async_task::AsyncTaskPool;
 
-use super::components::{CarbConsumedRecord, CarbResourceRecord, MeatConsumedRecord, MeatResourceRecord};
+use super::influx_types::{CarbConsumedRecord, CarbResourceRecord, MeatConsumedRecord, MeatResourceRecord};
 use super::utils::{to_influx_mapped, to_influx_vec};
 use super::InfluxDB;
 

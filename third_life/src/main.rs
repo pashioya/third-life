@@ -36,8 +36,9 @@ pub enum SimulationState {
     ConfigSelection,
     LoadingConfig,
     FinishedLoadingConfig,
-    LoadingDatabase,
-    FinishedLoadingDatabase,
+    SaveToDatabaseChoice,
+    LoadingDatabases,
+    FinishedLoadingDatabases,
     Running,
 }
 
@@ -49,7 +50,7 @@ fn main() {
             start_loading_database
         )
         .add_systems(
-            OnEnter(SimulationState::FinishedLoadingDatabase),
+            OnEnter(SimulationState::FinishedLoadingDatabases),
             start_running
         )
         .add_plugins((
@@ -79,11 +80,14 @@ fn main() {
 }
 
 fn start_loading_database(mut sim_state: ResMut<NextState<SimulationState>>) {
-    println!("starting the loading of the db");
-    sim_state.set(SimulationState::LoadingDatabase);
+    info!("Finished loading configs, initializing connections to dbs...");
+    sim_state.set(SimulationState::SaveToDatabaseChoice);
 }
 
 fn start_running(mut sim_state: ResMut<NextState<SimulationState>>) {
-    println!("running the sim");
+    info!("Config and DB connections initialized starting simulation...");
+    println!("");
+    println!("");
+    println!("");
     sim_state.set(SimulationState::Running);
 }

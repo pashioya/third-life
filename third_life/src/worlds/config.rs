@@ -3,21 +3,21 @@
 
 use proc_macros::{ConfigFile, Config};
 use bevy::prelude::*;
-use serde::{Deserialize};
+use serde::{Deserialize, Serialize};
 
-use crate::{config::{ConfigurationLoader}};
+use crate::config::ConfigurationLoader;
 impl ConfigurationLoader for WorldsConfig {
     fn path_with_name() -> &'static str {
         "worlds"
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, ConfigFile, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, ConfigFile, Default, Config)]
 pub struct WorldsConfig {
     worlds: Vec<WorldConfig>
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config, Component)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config, Component)]
 pub struct WorldConfig {
     /// Name should be unique, since its used for identification of multiple 
     /// things.
@@ -35,7 +35,7 @@ pub struct WorldConfig {
 }
 
 /// Different parameters affecting the population directly
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct PopulationConfig {
     /// Starting number of Peple. Any Real number
     #[def(1000)]
@@ -58,7 +58,7 @@ pub struct PopulationConfig {
     diet_macro_ratios: Option<DietMacroRatiosConfig>
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct PopulationDistributionConfig {
     /// Location of the Skew normal distribution. Any Positive number
     #[def(18.)]
@@ -71,18 +71,18 @@ pub struct PopulationDistributionConfig {
     shape: Option<f32>,
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct WeightDistributionConfig {
     #[def(70.)]
     average: Option<f32>
 }
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct HeightDistributionConfig {
     #[def(180.)]
     average: Option<f32>
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct DietMacroRatiosConfig {
     #[def(20)]
     protein: usize,
@@ -92,7 +92,7 @@ pub struct DietMacroRatiosConfig {
     carbs: usize
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct GovernmentConfig {
     #[def(0.1)]
     citizen_payout: Option<f32>,
@@ -107,7 +107,7 @@ pub struct GovernmentConfig {
 }
 
 /// General factors of the environment of the world
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct EnvironmentConfig {
     #[def(0.5)]
     urbanization: Option<f32>,
@@ -118,7 +118,7 @@ pub struct EnvironmentConfig {
 }
 
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct FoodConfig {
     #[def(6)]
     cow_farms: Option<usize>,
@@ -130,7 +130,7 @@ pub struct FoodConfig {
     starting_carb: Option<f32>,
 }
 
-#[derive(Deserialize, Debug, Clone, Resource, Default, Config)]
+#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct SpriteConfig {
     sprite_sheet: String,
     frames: usize,

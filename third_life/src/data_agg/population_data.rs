@@ -1,15 +1,12 @@
 use crate::time::{DateChanged, GameDate};
 use crate::worlds::population::components::Population;
 use crate::worlds::population::events::{CitizenCreated, CitizenDied};
-use crate::worlds::WorldEntity;
 use bevy::prelude::*;
-use chrono::{NaiveDateTime, NaiveTime, TimeZone, Utc};
-use futures::stream;
-use influxdb2::models::DataPoint;
 
-use bevy_async_task::{AsyncTask, AsyncTaskPool};
+use bevy_async_task::AsyncTaskPool;
 
-use super::components::{CitizenCreatedRecord, CitizenDiedRecord, InfluxDB, PopulationRecord};
+use super::components::InfluxDB;
+use super::influx_types::{CitizenCreatedRecord, CitizenDiedRecord, PopulationRecord};
 use super::utils::{to_influx_mapped, to_influx_vec};
 
 
