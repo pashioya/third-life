@@ -2,27 +2,22 @@ pub mod components;
 use self::components::*;
 pub mod events;
 use self::events::*;
-use self::tracking::CarbProduced;
 use self::tracking::FoodProductionTrackingPlugin;
-use self::tracking::MeatProduced;
 pub mod cow_farming;
 pub mod tracking;
 pub mod wheat_farming;
 use crate::time::GameDate;
-use crate::time::YearChanged;
 use crate::worlds::food::{cow_farming::*, wheat_farming::*};
 
 use std::usize;
 
-use crate::{time::DateChanged, SimulationState};
-use bevy::ecs::world;
-use bevy::{prelude::*, reflect::List, utils::HashMap};
-use bevy_egui::{egui::Window, EguiContexts};
+use crate::SimulationState;
+use bevy::prelude::*;
 use chrono::Months;
 use rand_distr::num_traits::Float;
 
 use super::config::WorldConfig;
-use super::{init_colonies, population::components::CitizenOf, WorldColony};
+use super::{init_colonies, WorldColony};
 
 pub struct FoodPlugin;
 impl Plugin for FoodPlugin {
@@ -45,6 +40,7 @@ impl Plugin for FoodPlugin {
                 get_cow_farm_workers,
                 check_for_more_cow_farms,
                 work_cow_farm,
+                butcher_cows,
             )
                 .run_if(in_state(SimulationState::Running)),
         )
@@ -93,7 +89,7 @@ fn init_food(
                 world_colony.used += cow_farm_size;
                 let cow_farm_entity = commands
                     .spawn((
-                        CowFarm { size: cow_farm_size },
+                        CowFarm { size: cow_farm_size, farmers_wanted: 4, hours_worked: 0., },
                         CowFarmOf {
                             colony: colony_entity,
                         },

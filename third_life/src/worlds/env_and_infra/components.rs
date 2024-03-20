@@ -12,10 +12,21 @@ pub struct ColonyInfraAndEnvBundle {
 /// Power, Water, Sewage and so on
 /// Calculate the urbanization index using the folowing formula:
 /// Urbanization Ratio = 1 - (Number of Farmers / Total Workforce)
-#[derive(Component, Default)]
+#[derive(Component)]
 pub struct CivilInfrastructure {
     // ? Should this be in the civil infrastructure or in the treasury?
     pub urbanization_index: f32,
+    // number between 0 and 1 to define how mechanized farming is
+    pub farming_mechanization: f32,
+}
+
+impl Default for CivilInfrastructure {
+    fn default() -> Self {
+        Self {
+            urbanization_index: 0.,
+            farming_mechanization: 0.5,
+        }
+    }
 }
 
 impl CivilInfrastructure {
@@ -101,4 +112,8 @@ impl EcosystemVitality {
 
 fn corr_ln(a: f32, b: f32, x: f32) -> f32 {
     a * x.ln() + b
+}
+
+pub fn weighted_range(start: f32, end: f32, weight: f32) -> f32 {
+    (end - start) * weight + start
 }

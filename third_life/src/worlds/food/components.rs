@@ -136,6 +136,12 @@ pub struct WheatFarm {
     pub harvested: f32,
 }
 
+impl WheatFarm {
+    pub fn remaining_for_harvest(&self) -> f32 {
+        self.size - self.harvested
+    }
+}
+
 #[derive(Component)]
 pub struct WheatFarmOf {
     pub colony: Entity,
@@ -153,7 +159,7 @@ pub struct Cow {
 
 #[derive(Component)]
 pub struct CowOf {
-    pub cow_farm: Entity
+    pub cow_farm: Entity,
 }
 
 #[derive(Component)]
@@ -216,6 +222,8 @@ impl MeatResource {
 #[derive(Component)]
 pub struct CowFarm {
     pub size: f32,
+    pub farmers_wanted: usize,
+    pub hours_worked: f32
 }
 
 #[derive(Component)]
