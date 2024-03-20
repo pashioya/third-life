@@ -2,8 +2,8 @@ use bevy::prelude::*;
 
 use crate::{
     worlds::{
-        food::components::{CowFarmer, Employed, WheatFarmer},
-        population::components::{Citizen, CitizenOf, Pregnancy, Retiree, Youngling},
+        food::components::{CowFarmer, WheatFarmer},
+        population::components::{CitizenOf, Pregnancy, Retiree, Youngling},
     },
     SimulationState,
 };

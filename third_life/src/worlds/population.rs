@@ -20,16 +20,15 @@ use crate::{
 use bevy::prelude::*;
 use chrono::{Datelike, NaiveDate};
 use rand::{thread_rng, Rng};
-use rand_distr::{
-    num_traits::{real::Real, Float},
-    Distribution, SkewNormal,
-};
+use rand_distr::{Distribution, SkewNormal};
 use rnglib::{Language, RNG};
 
 use self::{food_consumption::FoodConsumptionPlugin, growing::GrowingPlugin};
 
 use super::{
-    config::{WorldConfig, WorldsConfig}, food::components::{CowFarmer, WheatFarmer}, init_colonies, WorldColony, WorldEntity
+    config::WorldConfig,
+    food::components::{CowFarmer, WheatFarmer},
+    init_colonies, WorldColony,
 };
 
 pub struct PopulationPlugin;
@@ -82,12 +81,24 @@ pub fn init_citizens(
                 thread_rng().gen_range(1..=365),
             )
             .unwrap();
+            let genetic_height = pop_config.height_dist().average();
+            let genetic_weight = pop_config.weight_dist().average();
+            let daily_growth =( genetic_height - NEW_BORN_HEIGHT) / 9125.0;
+            let daily_fattening = (genetic_weight - NEW_BORN_WEIGHT) / 9125.0;
+
+            let height = (age * 365) as f32 * daily_growth + NEW_BORN_HEIGHT;
+            let weight = (age * 365) as f32 * daily_fattening + NEW_BORN_WEIGHT;
+
 
             let citizen = Citizen {
                 name: name_rng.generate_name(),
                 birthday,
-                height: pop_config.height_dist().average(),
-                weight: pop_config.weight_dist().average(),
+                genetic_height,
+                genetic_weight,
+                height,
+                weight,
+                daily_growth,
+                daily_fattening,
             };
             if game_date.years_since(birthday).unwrap() >= 18 as u32 {
                 match roll_chance(50) {
@@ -96,15 +107,23 @@ pub fn init_citizens(
                         citizen,
                         Employable,
                         CitizenOf { colony },
-                        Female { children_had: 0 },
+                        Female {
+                            children_had: 0,
+                            last_child_birth_date: None,
+                        },
                     )),
                 };
             } else {
                 match roll_chance(50) {
                     true => commands.spawn((citizen, CitizenOf { colony }, Male)),
-                    false => {
-                        commands.spawn((citizen, CitizenOf { colony }, Female { children_had: 0 }))
-                    }
+                    false => commands.spawn((
+                        citizen,
+                        CitizenOf { colony },
+                        Female {
+                            children_had: 0,
+                            last_child_birth_date: None,
+                        },
+                    )),
                 };
             }
             event_writer.send(CitizenCreated { age, colony });
@@ -114,51 +133,85 @@ pub fn init_citizens(
 }
 
 pub fn update_population(
-    mut event_reader: EventReader<CitizenCreated>,
+    mut date_change_event_reader: EventReader<DateChanged>,
     mut populations: Query<(Entity, &mut Population)>,
     citizens: Query<(&Citizen, &CitizenOf)>,
     working_pop: Query<&CitizenOf, (Without<Youngling>, Without<Retiree>, Without<Pregnancy>)>,
     younglings: Query<&CitizenOf, With<Youngling>>,
     retirees: Query<&CitizenOf, With<Retiree>>,
     women: Query<(&Citizen, &CitizenOf, &Female), Without<Youngling>>,
-    game_date: Res<GameDate>,
 ) {
-    for event in event_reader.read() {
+    for date_event in date_change_event_reader.read() {
         for (colony, mut population) in &mut populations.iter_mut() {
-            if colony == event.colony {
-                population.count += 1;
+            population.count = citizens
+                .iter()
+                .filter(|(_, citizen_of)| citizen_of.colony == colony)
+                .count();
 
-                let all_citizen_ages: Vec<usize> = citizens
-                    .iter()
-                    .filter_map(|(citizen, citizen_of)| {
-                        if citizen_of.colony == colony {
-                            Some(game_date.date.years_since(citizen.birthday).unwrap() as usize)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
+            population.younglings = younglings.iter().filter(|&y| y.colony == colony).count();
+            population.retirees = retirees.iter().filter(|&y| y.colony == colony).count();
+            population.working_pop = working_pop.iter().filter(|&y| y.colony == colony).count();
 
-                population.younglings = younglings.iter().filter(|&y| y.colony == colony).count();
-                population.retirees = retirees.iter().filter(|&y| y.colony == colony).count();
-                population.working_pop = working_pop.iter().filter(|&y| y.colony == colony).count();
+            let all_women_children_had: Vec<f32> = women
+                .iter()
+                .filter_map(|(_, citizen_of, female)| {
+                    if citizen_of.colony == colony {
+                        Some(female.children_had as f32)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-                let all_women_children_had: Vec<f32> = women
-                    .iter()
-                    .filter_map(|(_, citizen_of, female)| {
-                        if citizen_of.colony == colony {
-                            Some(female.children_had as f32)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
+            population.average_children_per_mother =
+                all_women_children_had.iter().sum::<f32>() / all_women_children_had.len() as f32;
 
-                population.average_children_per_mother = all_women_children_had.iter().sum::<f32>()
-                    / all_women_children_had.len() as f32;
+            let all_citizen_ages: Vec<usize> = citizens
+                .iter()
+                .filter_map(|(citizen, citizen_of)| {
+                    if citizen_of.colony == colony {
+                        Some(date_event.date.years_since(citizen.birthday).unwrap() as usize)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-                population.average_age =
-                    all_citizen_ages.iter().sum::<usize>() / all_citizen_ages.len();
+            let all_citizen_weights: Vec<f32> = citizens
+                .iter()
+                .filter_map(|(citizen, citizen_of)| {
+                    if citizen_of.colony == colony {
+                        Some(citizen.weight)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            let all_citizen_heights: Vec<f32> = citizens
+                .iter()
+                .filter_map(|(citizen, citizen_of)| {
+                    if citizen_of.colony == colony {
+                        Some(citizen.height)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            if population.count == 0 {
+                population.average_age = 0;
+                population.average_weight = 0.0;
+                population.average_height = 0.0;
+            } else {
+                population.average_age = all_citizen_ages.iter().sum::<usize>() / population.count;
+                population.average_weight =
+                    all_citizen_weights.iter().sum::<f32>() / population.count as f32;
+                population.average_height =
+                    all_citizen_heights.iter().sum::<f32>() / population.count as f32;
+            }
+            if date_event.date.year() != date_event.date.pred_opt().unwrap().year() {
+                population.yearly_infant_births = 0;
+                population.yearly_infant_deaths = 0;
             }
         }
     }
@@ -178,7 +231,7 @@ pub fn check_birthdays(
                 birthday_events.send(CitizenBirthday {
                     entity: citizen_entity,
                     colony: citizen_of.colony,
-                    age: game_date.years_since(citizen.birthday).unwrap() as usize
+                    age: game_date.years_since(citizen.birthday).unwrap() as usize,
                 });
             }
         }
@@ -188,7 +241,7 @@ pub fn check_birthdays(
 pub fn come_of_age(
     mut commands: Commands,
     mut birthday_event_reader: EventReader<CitizenBirthday>,
-    colonies: Query<(Entity, &WorldConfig)>
+    colonies: Query<(Entity, &WorldConfig)>,
 ) {
     for birthday in birthday_event_reader.read() {
         let config = colonies.get(birthday.colony).unwrap().1;
@@ -203,7 +256,7 @@ pub fn come_of_age(
 pub fn retirement(
     mut commands: Commands,
     mut birthday_event_reader: EventReader<CitizenBirthday>,
-    colonies: Query<(Entity, &WorldConfig)>
+    colonies: Query<(Entity, &WorldConfig)>,
 ) {
     for birthday in birthday_event_reader.read() {
         let config = colonies.get(birthday.colony).unwrap().1;

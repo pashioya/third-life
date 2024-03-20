@@ -1,46 +1,43 @@
-
-
-use std::collections::HashMap;
-
 use bevy::prelude::*;
+use crate::{
+    time::{DateChanged, GameDate},
+    SimulationState,
+};
 
-use crate::{time::GameDate, worlds::config::WorldConfig, SimulationState};
-
-use super::{Citizen, CitizenOf, StillGrowing, NEW_BORN_HEIGHT, NEW_BORN_WEIGHT};
+use super::{Citizen, Starving, StillGrowing, NEW_BORN_HEIGHT, NEW_BORN_WEIGHT};
 
 pub struct GrowingPlugin;
 
 impl Plugin for GrowingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (
-                grow_citizens,
-                stop_growing,
-            ).run_if(in_state(SimulationState::Running)));
+        app.add_systems(
+            Update,
+            (grow_citizens, stop_growing).run_if(in_state(SimulationState::Running)),
+        );
     }
 }
-
 const STOP_GROWING_AGE: usize = 25;
+const GROWING_DAYS: f32 = 9125.0;
 
 fn grow_citizens(
-    game_date: Res<GameDate>,
-    worlds: Query<(Entity, &WorldConfig)>,
-    mut citizens: Query<(&mut Citizen, &CitizenOf), With<StillGrowing>>
+    mut date_change_event: EventReader<DateChanged>,
+    mut citizens: Query<&mut Citizen, (With<StillGrowing>, Without<Starving>)>,
 ) {
-    let worlds = worlds.iter().map(|w|
-        (w.0, (w.1.population().height_dist().average(), w.1.population().weight_dist().average()))
-    ).collect::<HashMap<_, _>>();
-    for (mut citizen, CitizenOf { colony }) in citizens.iter_mut() {
-        let age_normalized = (game_date.years_since(citizen.birthday).unwrap() as usize / STOP_GROWING_AGE) as f32;
-        let (height_avg, weight_avg) = worlds.get(colony).unwrap();
-        citizen.height = *height_avg * age_normalized - NEW_BORN_HEIGHT;
-        citizen.weight = *weight_avg * age_normalized - NEW_BORN_WEIGHT;
-    }
+     let days = date_change_event.read().collect::<Vec<_>>();
+     if let Some(_) = days.last() {
+        let len_days = days.len();
+        for mut citizen in citizens.iter_mut() {
+            let days_growth =( (citizen.genetic_height - NEW_BORN_HEIGHT)/ GROWING_DAYS) * len_days as f32;
+            let days_fattening  = ((citizen.genetic_weight - NEW_BORN_WEIGHT) / GROWING_DAYS) * len_days as f32;
+            citizen.height += days_growth;
+            citizen.weight += days_fattening;
+        }    
+    } 
 }
-
 
 fn stop_growing(
     game_date: Res<GameDate>,
-    mut commands: Commands, 
+    mut commands: Commands,
     citizens: Query<(Entity, &Citizen), With<StillGrowing>>,
 ) {
     for (entity, citizen) in citizens.iter() {
