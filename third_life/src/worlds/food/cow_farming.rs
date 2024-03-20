@@ -1,17 +1,23 @@
 use std::usize;
 
-use bevy::{prelude::*, reflect::List, transform::commands, utils::hashbrown::HashMap};
+use bevy::{prelude::*, utils::hashbrown::HashMap};
 use chrono::{Datelike, Months, NaiveDate};
 use rand_distr::num_traits::Float;
 
 use crate::{
     common::utils::roll_chance,
     time::{DateChanged, GameDate, YearChanged},
-    worlds::{config::WorldConfig, population::components::{CitizenOf, Employed, MeatConsumed, Retiree, Youngling}, WorldColony},
+    worlds::{
+        config::WorldConfig,
+        env_and_infra::components::{weighted_range, CivilInfrastructure},
+        population::components::{CitizenOf, Employed, MeatConsumed, Retiree, Youngling},
+        WorldColony,
+    },
 };
 
 use super::{
-    tracking::MeatProduced, Cow, CowFarm, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf
+    tracking::MeatProduced, Cow, CowFarm, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf,
+    IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf,
 };
 
 pub fn mark_breeders(
@@ -99,15 +105,34 @@ pub fn breed_cows(
 }
 
 pub fn check_cow_farm_workers(
+    mut commands: Commands,
+    colonies_infrastructure: Query<(Entity, &CivilInfrastructure)>,
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut event_writer: EventWriter<CowFarmNeedsWorker>,
-    cow_farms: Query<(Entity, &CowFarmOf), With<CowFarm>>,
-    farmers: Query<(&CowFarmer, &CitizenOf)>,
+    mut cow_farms: Query<(Entity, &mut CowFarm, &CowFarmOf), With<CowFarm>>,
+    cows: Query<&CowOf>,
+    farmers: Query<(Entity, &CowFarmer, &CitizenOf)>,
 ) {
+    let cow_meat_weight = 250.;
+    let cows_count_map = cows.iter().fold(
+        HashMap::new(),
+        | mut acc: HashMap<Entity, usize>, cow_of | {
+            *acc.entry(cow_of.cow_farm).or_insert(0) += 1;
+            acc
+        },
+    );
+    let mut farmers_map = farmers.iter().fold(
+            HashMap::new(),
+            |mut acc: HashMap<Entity, Vec<Entity>>, (citizen, cow_farmer, _)| {
+                acc.entry(cow_farmer.farm).or_insert(Vec::new()).push(citizen);
+                acc
+                
+            },
+        );
     for _ in day_changed_event_reader.read() {
         let mut farms_map = cow_farms.iter().fold(
             HashMap::new(),
-            |mut acc: HashMap<Entity, HashMap<Entity, usize>>, (farm_entity, cow_farm_of)| {
+            |mut acc: HashMap<Entity, HashMap<Entity, usize>>, (farm_entity, _, cow_farm_of)| {
                 acc.entry(cow_farm_of.colony)
                     .or_insert(HashMap::new())
                     .entry(farm_entity)
@@ -116,7 +141,7 @@ pub fn check_cow_farm_workers(
             },
         );
 
-        for (cow_farmer, colony_of) in farmers.iter() {
+        for (_, cow_farmer, colony_of) in farmers.iter() {
             farms_map
                 .get_mut(&colony_of.colony)
                 .unwrap()
@@ -125,10 +150,38 @@ pub fn check_cow_farm_workers(
         }
 
         for (colony, farms) in farms_map {
-            for (farm, farmer_count) in farms {
-                if farmer_count < 4 {
-                    for _ in 0..(4 - farmer_count) {
-                        event_writer.send(CowFarmNeedsWorker { colony, farm });
+            let hours_needed_to_butcher_cow = cow_meat_weight
+                * weighted_range(
+                    1.3,
+                    0.055,
+                    colonies_infrastructure
+                        .get(colony)
+                        .unwrap()
+                        .1
+                        .farming_mechanization,
+                );
+            for (farm_entity, farmer_count) in farms {
+                let (_, mut farm, _) = cow_farms.get_mut(farm_entity).unwrap();
+                if farm.hours_worked > *cows_count_map.get(&farm_entity).unwrap() as f32 * hours_needed_to_butcher_cow * 1.2 {
+                    if farm.farmers_wanted > 1 {
+                        farm.farmers_wanted -= 1;
+                    }
+                } else if farm.hours_worked < *cows_count_map.get(&farm_entity).unwrap() as f32 * hours_needed_to_butcher_cow * 0.9  {
+                    if farm.farmers_wanted < 15 {
+                        farm.farmers_wanted += 1;
+                    }
+                }
+                if farmer_count < farm.farmers_wanted {
+                    for _ in 0..(farm.farmers_wanted - farmer_count) {
+                        event_writer.send(CowFarmNeedsWorker { colony, farm: farm_entity });
+                    }
+                } else if farmer_count > farm.farmers_wanted {
+                    for _ in 0..farmer_count-farm.farmers_wanted {
+                        let farmer = farmers_map.get_mut(&farm_entity).unwrap().pop().unwrap();
+                        commands.get_entity(farmer).map(| mut f | {
+                            f.remove::<CowFarmer>();
+                            f.remove::<Employed>();
+                        });
                     }
                 }
             }
@@ -139,7 +192,10 @@ pub fn check_cow_farm_workers(
 pub fn get_cow_farm_workers(
     mut commands: Commands,
     mut event_reader: EventReader<CowFarmNeedsWorker>,
-    free_citizens: Query<(Entity, &CitizenOf), (Without<Employed>, Without<Youngling>, Without<Retiree>)>,
+    free_citizens: Query<
+        (Entity, &CitizenOf),
+        (Without<Employed>, Without<Youngling>, Without<Retiree>),
+    >,
 ) {
     for needs_worker_event in event_reader.read() {
         for (citizen, citizen_of) in free_citizens.iter() {
@@ -159,47 +215,11 @@ pub fn get_cow_farm_workers(
 }
 
 pub fn work_cow_farm(
-    mut commands: Commands,
-    game_date: Res<GameDate>,
     mut day_changed_event_reader: EventReader<DateChanged>,
-    mut cow_farms: Query<(Entity, &mut CowFarm, &CowFarmOf)>,
-    cows: Query<(Entity, &Cow, &CowOf)>,
-    bulls: Query<(Entity, &Cow, &CowOf), (With<IsBull>, Without<IsBreeder>)>,
+    mut cow_farms: Query<(Entity, &mut CowFarm)>,
     farmers: Query<(&CowFarmer, &CitizenOf)>,
-    mut meat_resources: Query<(&mut MeatResource, &ResourceOf)>,
-    mut meat_created: EventWriter<MeatCreated>
 ) {
     for _ in day_changed_event_reader.read() {
-        let mut farms_map = cow_farms.iter_mut().fold(
-            HashMap::new(),
-            |mut acc: HashMap<
-                Entity,
-                HashMap<Entity, Vec<(Entity, &Cow)>>,
-            >,
-             (farm_entity, _, cow_farm_of)| {
-                acc.entry(cow_farm_of.colony)
-                    .or_insert(HashMap::new())
-                    .entry(farm_entity)
-                    .or_insert(Vec::new());
-                acc
-            },
-        );
-        
-        for (_, farms) in farms_map.iter_mut() {
-            for (bull_entity, cow, cow_of) in bulls.iter() {
-                farms
-                    .entry(cow_of.cow_farm)
-                    .and_modify(|f| f.push((bull_entity, cow)));
-            }
-        }
-        for (_, farms) in farms_map.iter_mut() {
-            for (cow_entity, cow, cow_of) in cows.iter() {
-                farms
-                    .entry(cow_of.cow_farm)
-                    .and_modify(|f| f.push((cow_entity, cow)));
-            }
-        }
-
         let farmers_map = farmers.iter().fold(
             HashMap::new(),
             |mut acc: HashMap<Entity, usize>, (cow_farmer, _)| {
@@ -208,42 +228,97 @@ pub fn work_cow_farm(
             },
         );
 
-        for (colony, farms) in farms_map {
-            let mut meat_harvested = 0;
-            for (farm_entity, cows) in farms {
-                let cows_count = cows.len();
-                //47 is the min amount of cows we want to keep
-                let min_to_keep = 47;
-                if cows_count <= min_to_keep {
-                    continue;
-                }
-                let mut to_harvest = cows_count - 47;
-                if to_harvest as f32
-                    > (farmers_map.get(&farm_entity).unwrap_or(&0) * 8) as f32 / 6.25
-                {
-                    to_harvest = ((farmers_map.get(&farm_entity).unwrap_or(&0) * 8) as f32 / 6.25)
-                        .floor() as usize;
-                }
-                
+        for (farm_entity, farmer_count) in farmers_map {
+            let available_work_hours = farmer_count as f32 * 8.0;
+            let (_, mut cow_farm) = cow_farms.get_mut(farm_entity).unwrap();
+            cow_farm.hours_worked += available_work_hours;
+        }
+    }
+}
 
-                for cow in cows {
-                    if to_harvest <= 0 {
-                        break;
-                    }
-                    let months = get_age_in_months(game_date.date, cow.1.birthday);
-                    //TODO: maybe better implement this to kill specific cows by age etc
-                    if months > 18 {
-                        commands.get_entity(cow.0).map(|mut e| e.despawn());
-                        meat_harvested += 250;
-                        to_harvest -= 1;
+pub fn butcher_cows(
+    mut commands: Commands,
+    colonies_infrastructure: Query<(Entity, &CivilInfrastructure)>,
+    mut meat_resources: Query<(&mut MeatResource, &ResourceOf)>,
+    mut cow_farms: Query<(Entity, &mut CowFarm, &CowFarmOf)>,
+    bulls: Query<(Entity, &Cow, &CowOf), (With<IsBull>, Without<IsBreeder>)>,
+    cows: Query<(Entity, &Cow, &CowOf), (Without<IsBull>, Without<IsBreeder>)>,
+    mut meat_created: EventWriter<MeatCreated>,
+    mut day_changed_event_reader: EventReader<DateChanged>,
+) {
+    let mut farms_map = cow_farms.iter_mut().fold(
+        HashMap::new(),
+        |mut acc: HashMap<Entity, HashMap<Entity, Vec<(Entity, &Cow)>>>,
+         (farm_entity, _, cow_farm_of)| {
+            acc.entry(cow_farm_of.colony)
+                .or_insert(HashMap::new())
+                .entry(farm_entity)
+                .or_insert(Vec::new());
+            acc
+        },
+    );
+
+    for (_, farms) in farms_map.iter_mut() {
+        for (cow_entity, cow, cow_of) in cows.iter() {
+            farms
+                .entry(cow_of.cow_farm)
+                .and_modify(|f| f.push((cow_entity, cow)));
+        }
+    }
+    for (_, farms) in farms_map.iter_mut() {
+        for (bull_entity, cow, cow_of) in bulls.iter() {
+            farms
+                .entry(cow_of.cow_farm)
+                .and_modify(|f| f.push((bull_entity, cow)));
+        }
+    }
+
+    let cow_meat_weight = 250.;
+
+    for day in day_changed_event_reader.read() {
+        for (colony, farms) in farms_map.iter_mut() {
+            let farm_mech_value = colonies_infrastructure
+                .get(*colony)
+                .unwrap()
+                .1
+                .farming_mechanization;
+            let mut harvested_meat = 0.0;
+            for (farm_entity, cows) in farms.iter_mut() {
+                let (_, mut farm, _) = cow_farms.get_mut(*farm_entity).unwrap();
+                let hours_needed_to_butcher_cow = cow_meat_weight
+                    * weighted_range(
+                        1.3,
+                        0.055,
+                        farm_mech_value
+                );
+
+                if farm.hours_worked > hours_needed_to_butcher_cow {
+                    let mut too_young = 0;
+                    let mut harvest_count =
+                        (farm.hours_worked / hours_needed_to_butcher_cow).floor() as usize;
+                    while let Some((cow_entity, cow)) = cows.pop() {
+                        if harvest_count <= 0  || cows.len() + too_young <= 47 {
+                            break;
+                        }
+                        if get_age_in_months(day.date, cow.birthday) > 18 {
+                            commands.get_entity(cow_entity).map(|mut e| { e.despawn()});
+                            harvest_count -= 1;
+                            farm.hours_worked -= hours_needed_to_butcher_cow;
+                            harvested_meat += cow_meat_weight;
+                        } else {
+                            too_young += 1;
+                        }
                     }
                 }
             }
 
             for (mut meat_resource, resource_of) in meat_resources.iter_mut() {
-                if resource_of.colony == colony {
-                    meat_resource.amount += meat_harvested as f32;
-                    meat_created.send(MeatCreated{ colony, amount:meat_harvested as f32});
+                if resource_of.colony == *colony {
+                    meat_resource.add_kgs(harvested_meat);
+                    meat_created.send(MeatCreated {
+                        colony: *colony,
+                        amount: harvested_meat,
+                    });
                 }
             }
         }
@@ -252,10 +327,16 @@ pub fn work_cow_farm(
 
 pub fn check_for_more_cow_farms(
     mut commands: Commands,
-    mut colonies: Query<(Entity, &mut WorldColony, &mut MeatConsumed, &mut MeatProduced, &WorldConfig)>,
+    mut colonies: Query<(
+        Entity,
+        &mut WorldColony,
+        &mut MeatConsumed,
+        &mut MeatProduced,
+        &WorldConfig,
+    )>,
     mut year_changed_rader: EventReader<YearChanged>,
     meat_resources: Query<(&ResourceOf, &MeatResource)>,
-    game_date: Res<GameDate>
+    game_date: Res<GameDate>,
 ) {
     let resource_map = meat_resources
         .iter()
@@ -263,19 +344,23 @@ pub fn check_for_more_cow_farms(
         .collect::<HashMap<_, _>>();
 
     for _ in year_changed_rader.read() {
-        for (colony, mut world_colony, mut meat_consumed, mut meat_produced, world_config) in colonies.iter_mut() {
+        for (colony, mut world_colony, mut meat_consumed, mut meat_produced, world_config) in
+            colonies.iter_mut()
+        {
             let min_surplus = world_config.food().min_surplus_multiplier();
 
-            if meat_consumed.amount*min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
+            if meat_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
                 let cow_farm_size = 34.0;
                 if world_colony.space_left() > cow_farm_size {
                     world_colony.used += cow_farm_size;
                     let cow_farm_entity = commands
                         .spawn((
-                            CowFarm { size: cow_farm_size },
-                            CowFarmOf {
-                                colony,
+                            CowFarm {
+                                size: cow_farm_size,
+                                farmers_wanted: 4,
+                                hours_worked: 0.,
                             },
+                            CowFarmOf { colony },
                         ))
                         .id();
                     let mut cows = Vec::new();

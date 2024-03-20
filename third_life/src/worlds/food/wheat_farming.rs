@@ -1,18 +1,19 @@
-use bevy::{prelude::*, utils::{hashbrown::HashMap}};
-use chrono::{Datelike, NaiveDate};
+use bevy::{prelude::*, utils::hashbrown::HashMap};
+use chrono::Datelike;
 
 use crate::{
     time::{DateChanged, GameDate, YearChanged},
     worlds::{
         config::WorldConfig,
-        population::components::{CarbConsumed, Citizen, CitizenOf, Employed},
+        env_and_infra::components::{weighted_range, CivilInfrastructure},
+        population::components::{CarbConsumed, CitizenOf, Employed},
         WorldColony,
     },
 };
 
 use super::{
-    tracking::CarbProduced, CarbCreated, CarbResource, CowFarmer, ResourceOf, WheatFarm,
-    WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer,
+    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmNeedsWorker,
+    WheatFarmOf, WheatFarmer,
 };
 
 pub fn season_check_wheat(
@@ -30,11 +31,10 @@ pub fn season_check_wheat(
     }
 }
 
-
 pub fn check_wheat_farms_counts(
     mut commands: Commands,
-    wheat_farms: Query<(Entity, &WheatFarmOf), With<WheatFarm>>,
-    farm_workers: Query<(Entity, &WheatFarmer)>,
+    //wheat_farms: Query<(Entity, &WheatFarmOf), With<WheatFarm>>,
+    //farm_workers: Query<(Entity, &WheatFarmer)>,
     mut colonies: Query<(
         Entity,
         &mut WorldColony,
@@ -50,7 +50,7 @@ pub fn check_wheat_farms_counts(
         .map(|(e, r)| (e.colony, r))
         .collect::<HashMap<_, _>>();
 
-    let mut farms_map = wheat_farms
+    /*let mut farms_map = wheat_farms
         .iter()
         .fold(
             HashMap::new(),
@@ -68,8 +68,8 @@ pub fn check_wheat_farms_counts(
                 acc.entry(wheat_farmer.farm).or_insert(Vec::new()).push(farmer_entity);
                 acc
             },
-        );
-    
+        );*/
+
     for _ in year_changed_reader.read() {
         for (colony, mut world_colony, mut carb_consumed, mut carb_produced, world_config) in
             colonies.iter_mut()
@@ -101,9 +101,9 @@ pub fn check_wheat_farms_counts(
                                 e.remove::<WheatFarmer>();
                                 e.remove::<Employed>();
                             });
-                    } 
+                    }
                     commands.get_entity(farm).map(|mut e| {
-                        e.despawn(); 
+                        e.despawn();
                     });
                     world_colony.used -= wheat_farm_size;
                 }
@@ -178,6 +178,7 @@ pub fn work_farm(
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut wheat_farms: Query<(Entity, &mut WheatFarm, &WheatFarmOf)>,
     farmers: Query<(&WheatFarmer, &CitizenOf)>,
+    colonies: Query<(Entity, &CivilInfrastructure)>,
     mut carb_resources: Query<(&mut CarbResource, &ResourceOf)>,
     mut carb_created: EventWriter<CarbCreated>,
 ) {
@@ -202,22 +203,30 @@ pub fn work_farm(
         }
 
         for (colony, farms) in farms_map {
+            let farm_mech_value = colonies.get(colony).unwrap().1.farming_mechanization;
             for (farm_entity, farmer_count) in farms {
+                let available_work_hours = farmer_count as f32 * 8.0;
+                let work_hours_per_hec = weighted_range(1098.0, 8.0, farm_mech_value);
+                let mut hec_worked = available_work_hours / work_hours_per_hec;
+
                 let (_, mut wheat_farm, _) = wheat_farms.get_mut(farm_entity).unwrap();
-                // 1.0 signifies multiplier for 1 8 hour work day
-                // harvested_amount is in ha
-                let mut harvested_amount = 1.0 * (farmer_count as f32);
-                if harvested_amount > wheat_farm.size - wheat_farm.harvested {
-                    harvested_amount = wheat_farm.size - wheat_farm.harvested;
+                if hec_worked > wheat_farm.remaining_for_harvest() {
+                    hec_worked = wheat_farm.remaining_for_harvest();
                 }
-                wheat_farm.harvested += harvested_amount;
-                if harvested_amount > 0.0 {
-                    for (mut carb_resource, resource_of) in carb_resources.iter_mut() {
-                        if resource_of.colony == colony {
-                            let amount = harvested_amount * 2670.0;
-                            carb_resource.add_kgs(amount);
-                            carb_created.send(CarbCreated { colony, amount });
-                        }
+
+                wheat_farm.harvested += hec_worked;
+
+                let yield_per_hec = weighted_range(1500., 2670., farm_mech_value);
+
+                let actual_yield = hec_worked * yield_per_hec;
+
+                for (mut carb_resource, resource_of) in carb_resources.iter_mut() {
+                    if resource_of.colony == colony {
+                        carb_resource.add_kgs(actual_yield);
+                        carb_created.send(CarbCreated {
+                            colony,
+                            amount: actual_yield,
+                        });
                     }
                 }
             }
