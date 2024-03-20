@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{
-    worlds::wealth::components::{SpendingPolicy, Treasury},
-    SimulationState,
-};
+use crate::{worlds::wealth::components::Treasury, SimulationState};
 
 use super::components::EnvironmentalHealth;
 

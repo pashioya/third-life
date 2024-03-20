@@ -1,15 +1,9 @@
-use std::{f32::consts, iter::zip};
 use crate::{
-    common::utils::roll_chance,
-    time::{DateChanged, GameDate, MonthChanged},
-    SimulationState, worlds::WorldColony,
+    time::{DateChanged, GameDate},
+    worlds::WorldColony,
+    SimulationState,
 };
-use bevy::{prelude::*, transform::commands};
-use bevy_egui::{egui::{Window, ahash::{HashMap, HashMapExt}}, EguiContexts};
-use chrono::{Datelike, NaiveDate};
-use rand::{thread_rng, Rng, rngs::ThreadRng};
-use rand_distr::{num_traits::{Float, real::Real}, Distribution, SkewNormal};
-use rnglib::{Language, RNG};
+use bevy::prelude::*;
 
 use super::{components::*, events::CitizenDied};
 
@@ -17,14 +11,10 @@ pub struct RelationshipsPlugin;
 
 impl Plugin for RelationshipsPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .add_systems(
-                Update,
-                (
-                    init_couples,
-                    create_widowed
-                ).run_if(in_state(SimulationState::Running))
-            );
+        app.add_systems(
+            Update,
+            (init_couples, create_widowed).run_if(in_state(SimulationState::Running)),
+        );
     }
 }
 
@@ -69,7 +59,9 @@ pub fn init_couples(
                             e.try_insert(Spouse { spouse: man_entity });
                         });
                         commands.get_entity(man_entity).map(|mut e| {
-                            e.try_insert(Spouse { spouse: woman_entity });
+                            e.try_insert(Spouse {
+                                spouse: woman_entity,
+                            });
                         });
                     }
                 }
@@ -81,18 +73,15 @@ pub fn init_couples(
 pub fn create_widowed(
     mut commands: Commands,
     mut deaths: EventReader<CitizenDied>,
-    spouses: Query<(Entity, &Spouse)>
+    spouses: Query<(Entity, &Spouse)>,
 ) {
-    let dead_people = deaths.read().map(|e|e.citizen).collect::<Vec<_>>();
+    let dead_people = deaths.read().map(|e| e.citizen).collect::<Vec<_>>();
     for (entity, Spouse { spouse }) in spouses.iter() {
         if dead_people.contains(spouse) {
-            let _ = commands.get_entity(entity)
-                .map(|mut e| {
-                    e.remove::<Spouse>();
-                    e.try_insert(Widowed);
-                });
+            let _ = commands.get_entity(entity).map(|mut e| {
+                e.remove::<Spouse>();
+                e.try_insert(Widowed);
+            });
         }
     }
 }
-
-

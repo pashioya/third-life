@@ -3,8 +3,6 @@ use chrono::NaiveDate;
 
 use crate::worlds::food::components::FedStatus;
 
-use super::CitizenDied;
-
 use super::super::config;
 
 /// In cm
@@ -19,14 +17,18 @@ pub struct Population {
     pub younglings: usize,
     pub retirees: usize,
     pub average_age: usize,
+    pub average_height: f32,
+    pub average_weight: f32,
     pub average_children_per_mother: f32,
+    pub yearly_infant_deaths: usize,
+    pub yearly_infant_births: usize,
 }
 
 #[derive(Component, Default)]
 pub struct DietMacroRatios {
     protein: usize,
     fat: usize,
-    carbs: usize
+    carbs: usize,
 }
 
 impl DietMacroRatios {
@@ -35,19 +37,33 @@ impl DietMacroRatios {
         let fat = config.fat();
         let carbs = config.carbs();
         match (protein + fat + carbs) == 100 {
-            true => Ok(Self { protein, fat, carbs }),
-            false => Err(())
+            true => Ok(Self {
+                protein,
+                fat,
+                carbs,
+            }),
+            false => Err(()),
         }
     }
     pub fn new(protein: usize, fat: usize, carbs: usize) -> Result<Self, ()> {
         match (protein + fat + carbs) == 100 {
-            true => Ok(Self { protein, fat, carbs }),
-            false => Err(())
+            true => Ok(Self {
+                protein,
+                fat,
+                carbs,
+            }),
+            false => Err(()),
         }
     }
-    pub fn protein(&self) -> f32 { self.protein as f32 / 100. }
-    pub fn fat(&self) -> f32 { self.fat as f32 / 100. }
-    pub fn carbs(&self) -> f32 { self.carbs as f32 / 100. }
+    pub fn protein(&self) -> f32 {
+        self.protein as f32 / 100.
+    }
+    pub fn fat(&self) -> f32 {
+        self.fat as f32 / 100.
+    }
+    pub fn carbs(&self) -> f32 {
+        self.carbs as f32 / 100.
+    }
 }
 
 #[derive(Bundle)]
@@ -60,11 +76,28 @@ pub struct MaleCitizenBundle {
 
 impl MaleCitizenBundle {
     pub fn new(
-        name: String, colony: Entity, birthday: NaiveDate,
+        name: String,
+        colony: Entity,
+        birthday: NaiveDate,
+        genetic_height: f32,
+        genetic_weight: f32,
+        daily_growth: f32,
+        daily_fattening: f32,
     ) -> Self {
-        Self { 
-            citizen: Citizen { name, birthday, height: NEW_BORN_HEIGHT, weight: NEW_BORN_WEIGHT }, 
-            of: CitizenOf { colony }, male: Male, growing: StillGrowing
+        Self {
+            citizen: Citizen {
+                name,
+                birthday,
+                genetic_height,
+                genetic_weight,
+                height: NEW_BORN_HEIGHT,
+                weight: NEW_BORN_WEIGHT,
+                daily_growth: daily_growth,
+                daily_fattening: daily_fattening,
+            },
+            of: CitizenOf { colony },
+            male: Male,
+            growing: StillGrowing,
         }
     }
 }
@@ -79,12 +112,31 @@ pub struct FemaleCitizenBundle {
 
 impl FemaleCitizenBundle {
     pub fn new(
-        name: String, colony: Entity, birthday: NaiveDate,
+        name: String,
+        colony: Entity,
+        birthday: NaiveDate,
+        genetic_height: f32,
+        genetic_weight: f32,
+        daily_growth: f32,
+        daily_fattening: f32,   
     ) -> Self {
-        Self { 
-            citizen: Citizen { name, birthday, height: NEW_BORN_HEIGHT, weight: NEW_BORN_WEIGHT }, 
-            of: CitizenOf { colony }, female: Female { children_had: 0 }, 
-            growing: StillGrowing
+        Self {
+            citizen: Citizen {
+                name,
+                birthday,
+                genetic_height,
+                genetic_weight,
+                height: NEW_BORN_HEIGHT,
+                weight: NEW_BORN_WEIGHT,
+                daily_growth: daily_growth,
+                daily_fattening: daily_fattening,
+            },
+            of: CitizenOf { colony },
+            female: Female {
+                children_had: 0,
+                last_child_birth_date: None,
+            },
+            growing: StillGrowing,
         }
     }
 }
@@ -93,8 +145,12 @@ impl FemaleCitizenBundle {
 pub struct Citizen {
     pub name: String,
     pub birthday: NaiveDate,
+    pub genetic_height: f32,
+    pub genetic_weight: f32,
     pub height: f32,
     pub weight: f32,
+    pub daily_growth: f32,
+    pub daily_fattening: f32,
 }
 
 #[derive(Component)]
@@ -108,18 +164,24 @@ pub enum StarvingStatus {
     ReducedStarving,
     StillStarving,
     IncreasedStarving,
-    Died
+    Died,
 }
 
 #[derive(Component)]
 pub struct Starving {
-    pub days_since_last_meal: usize
+    pub days_since_last_meal: usize,
 }
 
 impl Starving {
     const LIMIT_DAYS_STARVATION: usize = 21;
-    pub fn started() -> Self { Self { days_since_last_meal: 1 } }
-    pub fn died(&self) -> bool { self.days_since_last_meal > Self::LIMIT_DAYS_STARVATION }
+    pub fn started() -> Self {
+        Self {
+            days_since_last_meal: 1,
+        }
+    }
+    pub fn died(&self) -> bool {
+        self.days_since_last_meal > Self::LIMIT_DAYS_STARVATION
+    }
     pub fn feed_many(&mut self, statuses: &Vec<&FedStatus>) -> StarvingStatus {
         let mut final_status = StarvingStatus::StillStarving;
         for status in statuses {
@@ -132,9 +194,11 @@ impl Starving {
     }
     pub fn feed(&mut self, status: &FedStatus) -> StarvingStatus {
         match status {
-            FedStatus::FedCorrectDiet { .. } | FedStatus::FedInccorectDiet { .. } => self.feed_once(),
+            FedStatus::FedCorrectDiet { .. } | FedStatus::FedInccorectDiet { .. } => {
+                self.feed_once()
+            }
             FedStatus::InsuficcentlyFed { .. } => StarvingStatus::StillStarving,
-            FedStatus::NotFed => self.starve_once()
+            FedStatus::NotFed => self.starve_once(),
         }
     }
     fn feed_once(&mut self) -> StarvingStatus {
@@ -143,12 +207,12 @@ impl Starving {
             1 => {
                 self.days_since_last_meal -= 1;
                 StarvingStatus::StoppedStarving
-            },
+            }
             2..=Self::LIMIT_DAYS_STARVATION => {
                 self.days_since_last_meal -= 1;
                 StarvingStatus::ReducedStarving
-            },
-            _ => StarvingStatus::Died
+            }
+            _ => StarvingStatus::Died,
         }
     }
     fn starve_once(&mut self) -> StarvingStatus {
@@ -156,15 +220,16 @@ impl Starving {
             0..=Self::LIMIT_DAYS_STARVATION => {
                 self.days_since_last_meal += 1;
                 StarvingStatus::IncreasedStarving
-            },
-            _ => StarvingStatus::Died
+            }
+            _ => StarvingStatus::Died,
         }
     }
 }
 
 #[derive(Component)]
 pub struct Female {
-    pub children_had: usize
+    pub children_had: usize,
+    pub last_child_birth_date: Option<NaiveDate>,
 }
 
 #[derive(Component)]
@@ -196,7 +261,6 @@ pub struct Employed;
 
 #[derive(Component)]
 pub struct Employable;
-
 
 #[derive(Component)]
 pub struct Youngling;

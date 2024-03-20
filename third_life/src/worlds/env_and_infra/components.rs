@@ -10,11 +10,10 @@ pub struct ColonyInfraAndEnvBundle {
 }
 
 /// Power, Water, Sewage and so on
-/// Calculate the urbanization index using the folowing formula:
+/// Calculate the urbanization index using the following formula:
 /// Urbanization Ratio = 1 - (Number of Farmers / Total Workforce)
 #[derive(Component)]
 pub struct CivilInfrastructure {
-    // ? Should this be in the civil infrastructure or in the treasury?
     pub urbanization_index: f32,
     // number between 0 and 1 to define how mechanized farming is
     pub farming_mechanization: f32,
@@ -38,7 +37,7 @@ impl CivilInfrastructure {
     }
 }
 
-/// Anthing that has to do with sanitation like hospitals but also
+/// Anything that has to do with sanitation like hospitals but also
 /// things like bathrooms.
 ///
 /// According to research and the correlation math we did
@@ -51,6 +50,8 @@ impl CivilInfrastructure {
 pub struct SanitationInfrastructure {
     pub health_index_score: f32,
     pub live_birth_mortality_rate: f32,
+    pub global_hunger_index: f32,
+    pub actual_infant_death_ratio: f32,
 }
 
 impl SanitationInfrastructure {
@@ -63,6 +64,33 @@ impl SanitationInfrastructure {
     }
     fn live_birth_mortality_rate_fn(&mut self, spending: f32) {
         self.live_birth_mortality_rate = corr_ln(-0.00260, 0.00923, spending);
+    }
+    pub fn actual_infant_mortality_rate_fn(
+        &mut self,
+        yearly_infant_deaths: usize,
+        yearly_infant_births: usize,
+    ) {
+        if yearly_infant_births == 0 {
+            self.actual_infant_death_ratio = 0.0;
+            return;
+        }
+        self.actual_infant_death_ratio =
+            (yearly_infant_deaths / yearly_infant_births) as f32 * 1000.0;
+    }
+    pub fn calc_global_hunger_index_fn(
+        &mut self,
+        undernourishment: f32,
+        child_stunting: f32,
+        child_wasting: f32,
+    ) {
+        self.global_hunger_index = (undernourishment / 80.0) * 100.0
+            + (child_stunting / 70.0) * 100.0
+            + (child_wasting / 30.0) * 100.0
+            + (self.actual_infant_death_ratio / 35.0) * 100.0;
+        //  FIXME: Why is this needed? shouldtnt this be 0 by default?
+        if self.global_hunger_index.is_nan() {
+            self.global_hunger_index = 0.0;
+        }
     }
 }
 
