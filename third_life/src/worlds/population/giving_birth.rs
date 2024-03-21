@@ -33,6 +33,13 @@ impl Plugin for GivingBirthPlugin {
     }
 }
 
+fn get_randome_name() -> String {
+    let Ok(name_rng) = RNG::new(&Language::Elven) else {
+        return get_randome_name();
+    };
+    name_rng.generate_name()
+}
+
 pub fn citizen_births(
     mut commands: Commands,
     mut date_event_reader: EventReader<DateChanged>,
@@ -46,14 +53,13 @@ pub fn citizen_births(
             if pregnancy.baby_due_date == date_event.date {
                 for (colony, mut population, sanitation_infra, config) in colonies.iter_mut() {
                     if citizen_of.colony == colony {
+                        let name = String::from("Name"); // get_randome_name();
                         // No live birth if live birth mortality rate is too high
                         if roll_chance(
                             ((sanitation_infra.live_birth_mortality_rate / 1000.0) * 100.0) as u8,
                         ) {
                             continue;
                         }
-                        let name_rng = RNG::try_from(&Language::Roman).unwrap();
-                        let name = name_rng.generate_name();
                         // if higher than 0.5 then the baby is likely lower than average, else higher.
                         let genetic_height = Normal::new(config.population().height_dist().average(), 7.0).unwrap().sample(&mut rand::thread_rng());
                         let genetic_weight = Normal::new(config.population().weight_dist().average(), 10.0).unwrap().sample(&mut rand::thread_rng());
@@ -63,7 +69,7 @@ pub fn citizen_births(
                         let daily_fattening = (genetic_weight - NEW_BORN_WEIGHT) / 9125.0;
 
                         match roll_chance(50) {
-                            true => commands.spawn((
+                            true => commands.spawn(
                                 MaleCitizenBundle::new(
                                     name,
                                     colony,
@@ -72,10 +78,8 @@ pub fn citizen_births(
                                     genetic_weight,
                                     daily_growth,
                                     daily_fattening
-                                ),
-                                Youngling,
-                            )),
-                            false => commands.spawn((
+                                )),
+                            false => commands.spawn(
                                 FemaleCitizenBundle::new(
                                     name,
                                     colony,
@@ -84,9 +88,8 @@ pub fn citizen_births(
                                     genetic_weight,
                                     daily_growth,
                                     daily_fattening
-                                ),
-                                Youngling,
-                            )),
+                                )
+                            ),
                         };
                         w_female.children_had += 1;
                         w_female.last_child_birth_date = Some(date_event.date);

@@ -1,9 +1,9 @@
 pub mod config;
-mod env_and_infra;
-mod food;
-mod population;
-mod ui;
-mod wealth;
+pub(crate) mod food;
+pub(crate) mod population;
+pub(crate) mod ui;
+pub(crate) mod env_and_infra;
+pub(crate) mod wealth;
 
 use bevy::{ecs::world, prelude::*};
 
@@ -44,7 +44,7 @@ impl Plugin for WorldsPlugin {
     }
 }
 
-fn init_colonies(
+pub(crate) fn init_colonies(
     mut commands: Commands,
     worlds_config: Res<WorldsConfig>,
     asset_server: Res<AssetServer>,
@@ -103,7 +103,7 @@ impl WorldColony {
 
 #[derive(Component)]
 pub struct WorldEntity {
-    name: String,
+    pub name: String,
 }
 
 impl WorldEntity {

@@ -6,10 +6,21 @@ pub struct CitizenCreated {
     pub colony: Entity,
 }
 
+#[derive(Hash, PartialEq, Eq)]
 pub enum DeathReason {
     OldAge,
     Starvation,
     InfantDeath,
+}
+
+impl DeathReason {
+    pub fn to_lowercase(&self) -> String {
+        String::from(match self {
+            Self::OldAge => "old_age",
+            Self::Starvation => "starvation",
+            Self::InfantDeath => "infant_death"
+        })
+    }
 }
 
 #[derive(Event)]

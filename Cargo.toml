@@ -3,6 +3,6 @@ resolver = "2"
 
 members = [
     "third_life",
-    "proc_macros"
+    "proc_macros",
 ]
 
