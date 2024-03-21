@@ -45,21 +45,15 @@ pub fn citizen_births(
     mut date_event_reader: EventReader<DateChanged>,
     mut event_writer: EventWriter<CitizenCreated>,
     mut pregnant_women: Query<(Entity, &mut Female, &mut Pregnancy, &CitizenOf), With<Pregnancy>>,
-    mut colonies: Query<(Entity, &mut Population, &SanitationInfrastructure, &WorldConfig), With<WorldColony>>,
+    mut colonies: Query<(Entity, &mut Population, &WorldConfig), With<WorldColony>>,
 
 ) {
     for date_event in date_event_reader.read() {
         for (entity, mut w_female, pregnancy, citizen_of) in &mut pregnant_women.iter_mut() {
             if pregnancy.baby_due_date == date_event.date {
-                for (colony, mut population, sanitation_infra, config) in colonies.iter_mut() {
+                for (colony, mut population, config) in colonies.iter_mut() {
                     if citizen_of.colony == colony {
                         let name = String::from("Name"); // get_randome_name();
-                        // No live birth if live birth mortality rate is too high
-                        if roll_chance(
-                            ((sanitation_infra.live_birth_mortality_rate / 1000.0) * 100.0) as u8,
-                        ) {
-                            continue;
-                        }
                         // if higher than 0.5 then the baby is likely lower than average, else higher.
                         let genetic_height = Normal::new(config.population().height_dist().average(), 7.0).unwrap().sample(&mut rand::thread_rng());
                         let genetic_weight = Normal::new(config.population().weight_dist().average(), 10.0).unwrap().sample(&mut rand::thread_rng());
@@ -256,9 +250,9 @@ pub fn pregnancy_desire(
         * urbanization
         * (economy_t / economy_tm1)
         * (4.5 - global_hunger_index)
-        * (1.0 - urbanization))
+        * (2.0 - urbanization))
         .abs();
-
+    
     // adjust the pregnancy chance by reducing it by 10% for each child
     preg_chance = preg_chance * (1.0 - 0.1f32).powi(number_of_children as i32) * 100.0;
 

@@ -189,6 +189,11 @@ pub fn update_population(
             ref avg,ref count, ref avg_height, ref avg_weight,
         ) = *citizens.get(&colony).unwrap_or(&(0., 0, 0., 0.));
 
+        if game_date.date.year() != game_date.date.pred_opt().unwrap().year() {
+            population.yearly_infant_births = 0;
+            population.yearly_infant_births = 0;
+        }
+
         population.average_age = avg.floor() as usize;
         population.count = *count;
         population.average_height = *avg_height;

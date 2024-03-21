@@ -34,6 +34,9 @@ impl CivilInfrastructure {
     }
     fn urbanization_index_fn(&mut self, work_force: usize, farmers_count: usize) {
         self.urbanization_index = 1.0 - (farmers_count as f32 / work_force as f32);
+        if self.urbanization_index.is_nan() {
+            self.urbanization_index = 0.0;
+        }
     }
 }
 
