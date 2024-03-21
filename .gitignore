@@ -7,3 +7,6 @@ Cargo.lock
 
 third_life/assets/config/*
 !third_life/assets/config/config-1/
+
+**/.env
+influxdb-grafana/postgres/

@@ -171,7 +171,7 @@ pub struct IsBreeder;
 #[derive(Component, Default)]
 pub struct MeatResource {
     pub quality: f32,
-    pub amount: f32,
+    amount: f32,
 }
 
 impl MeatResource {

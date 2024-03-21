@@ -1,9 +1,22 @@
 volumes:
+    postgres:
+        driver: local
     influxdb-data:
         driver: local
     grafana-data:
         driver: local
 services:
+    postgres:
+        image: postgres:14.1-alpine
+        environment:
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - POSTGRES_DB=simulation
+        ports:
+            - "5433:5432"
+        volumes: 
+            - ./postgres/data:/var/lib/postgresql/data
+        restart: unless-stopped
     influxdb:
         image: influxdb:latest
         container_name: influxdb
@@ -11,7 +24,7 @@ services:
             - "8086:8086"
         volumes:
             - influxdb-data:/var/lib/influxdb2
-            - /etc/influxdb2:/etc/influxdb2
+            - ./influxdb2/data:/etc/influxdb2
         environment:
             - DOCKER_INFLUXDB_INIT_MODE=setup
             - DOCKER_INFLUXDB_INIT_USERNAME=admin

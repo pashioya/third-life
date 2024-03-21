@@ -23,7 +23,6 @@ pub fn season_check_wheat(
 ) {
     for _ in day_changed_event_reader.read() {
         if game_date.date.month() == 6 && game_date.date.day() == 1 {
-            warn!("Harvest season has begun {:?}", game_date.date);
             for mut wheat_farm in wheat_farms.iter_mut() {
                 wheat_farm.harvested = 0.0;
             }

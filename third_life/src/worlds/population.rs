@@ -10,6 +10,7 @@ use components::*;
 use dying::*;
 use events::*;
 use giving_birth::*;
+use num_traits::float::FloatCore;
 use relationships::*;
 
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
     time::{DateChanged, GameDate},
     SimulationState,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::List, utils::HashMap};
 use chrono::{Datelike, NaiveDate};
 use rand::{thread_rng, Rng};
 use rand_distr::{Distribution, SkewNormal};
@@ -133,87 +134,65 @@ pub fn init_citizens(
 }
 
 pub fn update_population(
-    mut date_change_event_reader: EventReader<DateChanged>,
+    game_date: Res<GameDate>,
     mut populations: Query<(Entity, &mut Population)>,
     citizens: Query<(&Citizen, &CitizenOf)>,
     working_pop: Query<&CitizenOf, (Without<Youngling>, Without<Retiree>, Without<Pregnancy>)>,
     younglings: Query<&CitizenOf, With<Youngling>>,
     retirees: Query<&CitizenOf, With<Retiree>>,
-    women: Query<(&Citizen, &CitizenOf, &Female), Without<Youngling>>,
+    women: Query<(&CitizenOf, &Female)>,
 ) {
-    for date_event in date_change_event_reader.read() {
-        for (colony, mut population) in &mut populations.iter_mut() {
-            population.count = citizens
-                .iter()
-                .filter(|(_, citizen_of)| citizen_of.colony == colony)
-                .count();
+    let citizens = citizens.iter()
+        .fold(HashMap::new(), |mut acc, (Citizen { birthday, height, weight, ..}, CitizenOf { colony })| {
+            let age = game_date.date.years_since(*birthday).unwrap() as f32;
+            let (
+                ref mut avg,
+                ref mut count,
+                ref mut avg_height,
+                ref mut avg_weight,
+            ) = acc.entry(colony).or_insert((age, 0, *height, *weight));
+            *avg = (*avg + age) / 2.;
+            *count += 1;
+            *avg_height = (*avg_height + *height) / 2.;
+            *avg_weight = (*avg_weight + *weight) / 2.;
+            acc
+        });
+    let younglings = younglings.into_iter()
+        .fold(HashMap::new(), |mut acc, CitizenOf { colony }| {
+            *acc.entry(colony).or_insert(0) += 1; acc
+        });
+    let working_pop = working_pop.into_iter()
+        .fold(HashMap::new(), |mut acc, CitizenOf { colony }| {
+            *acc.entry(colony).or_insert(0) += 1; acc
+        });
+    let retirees = retirees.into_iter()
+        .fold(HashMap::new(), |mut acc, CitizenOf { colony }| {
+            *acc.entry(colony).or_insert(0) += 1; acc
+        });
+    let women = women.into_iter()
+        .fold(HashMap::new(), |mut acc, (CitizenOf { colony }, Female { children_had, .. })| {
+            let children_had = *children_had as f32;
+            let avg = acc.entry(colony).or_insert(children_had);
+            *avg = (*avg + children_had) / 2.;
+            acc
+        });
 
-            population.younglings = younglings.iter().filter(|&y| y.colony == colony).count();
-            population.retirees = retirees.iter().filter(|&y| y.colony == colony).count();
-            population.working_pop = working_pop.iter().filter(|&y| y.colony == colony).count();
+    for (colony, mut population) in &mut populations.iter_mut() {
 
-            let all_women_children_had: Vec<f32> = women
-                .iter()
-                .filter_map(|(_, citizen_of, female)| {
-                    if citizen_of.colony == colony {
-                        Some(female.children_had as f32)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+        population.younglings = *younglings.get(&colony).unwrap_or(&0);
+        population.retirees = *retirees.get(&colony).unwrap_or(&0); 
+        population.working_pop = *working_pop.get(&colony).unwrap_or(&0); 
 
-            population.average_children_per_mother =
-                all_women_children_had.iter().sum::<f32>() / all_women_children_had.len() as f32;
+        population.average_children_per_mother = *women.get(&colony).unwrap_or(&0.);
 
-            let all_citizen_ages: Vec<usize> = citizens
-                .iter()
-                .filter_map(|(citizen, citizen_of)| {
-                    if citizen_of.colony == colony {
-                        Some(date_event.date.years_since(citizen.birthday).unwrap() as usize)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+        let (
+            ref avg,ref count, ref avg_height, ref avg_weight,
+        ) = *citizens.get(&colony).unwrap_or(&(0., 0, 0., 0.));
 
-            let all_citizen_weights: Vec<f32> = citizens
-                .iter()
-                .filter_map(|(citizen, citizen_of)| {
-                    if citizen_of.colony == colony {
-                        Some(citizen.weight)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            let all_citizen_heights: Vec<f32> = citizens
-                .iter()
-                .filter_map(|(citizen, citizen_of)| {
-                    if citizen_of.colony == colony {
-                        Some(citizen.height)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            if population.count == 0 {
-                population.average_age = 0;
-                population.average_weight = 0.0;
-                population.average_height = 0.0;
-            } else {
-                population.average_age = all_citizen_ages.iter().sum::<usize>() / population.count;
-                population.average_weight =
-                    all_citizen_weights.iter().sum::<f32>() / population.count as f32;
-                population.average_height =
-                    all_citizen_heights.iter().sum::<f32>() / population.count as f32;
-            }
-            if date_event.date.year() != date_event.date.pred_opt().unwrap().year() {
-                population.yearly_infant_births = 0;
-                population.yearly_infant_deaths = 0;
-            }
-        }
+        population.average_age = avg.floor() as usize;
+        population.count = *count;
+        population.average_height = *avg_height;
+        population.average_weight = *avg_weight;
     }
 }
 

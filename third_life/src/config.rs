@@ -45,10 +45,10 @@ use core::panic;
 use std::{collections::HashMap, fs, fmt::Debug};
 
 
-use bevy::{prelude::*, asset::{AssetLoader, io::Reader, LoadContext, AsyncReadExt}, utils::{thiserror::Error, BoxedFuture}};
-use bevy_egui::{egui::{Window}, EguiContexts};
+use bevy::{prelude::*, asset::{AssetLoader, io::Reader, LoadContext, AsyncReadExt}, utils::BoxedFuture};
+use bevy_egui::{egui::Window, EguiContexts};
 use proc_macros::{Config, ConfigFile};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::SimulationState;
 
@@ -145,7 +145,7 @@ fn register_readers(
     mut events: EventReader<RegisterConfigReaderEvent>
 ) {
     for event in events.read() {
-        println!("registering {}", event.0);
+        info!("Registering config of: {}", event.0);
         if all.contains_key(&event.0) {
             panic!(r#"
                 Two `RegisterConfigReaderEvent` with the same name were fired.
@@ -167,7 +167,7 @@ fn recive_config_loaded_events(
     mut sim_state: ResMut<NextState<SimulationState>>
 ) {
     for event in events.read() {
-        println!("finished loading {}", event.0);
+        info!("Finished loading config of: {}", event.0);
         let Some(val) = all.get_mut(&event.0) else {
             panic!(r#"
                 A `ConfigReaderFinishedEvent` was recived but the 
@@ -188,7 +188,7 @@ fn recive_config_loaded_events(
     }
 
     if all.iter().all(|(_, e)|e.eq(&LoadingReader::Recived)) {
-        sim_state.set(SimulationState::Running);
+        sim_state.set(SimulationState::FinishedLoadingConfig);
     }
 }
 
@@ -333,7 +333,7 @@ pub trait ConfigurationLoader: Sized + DeserializeOwned + Debug + Resource {
 }
 
 
-#[derive(Resource, Debug, Deserialize, Clone, ConfigFile, Config)]
+#[derive(Resource, Debug, Deserialize, Serialize, Clone, ConfigFile, Config)]
 pub struct ThirdLifeConfig {
     #[def(1.)]
     real_time_day_length: Option<f32>,
@@ -347,7 +347,7 @@ impl ConfigurationLoader for ThirdLifeConfig {
     }
 }
 
-#[derive(Config, Debug, Deserialize, Clone)]
+#[derive(Config, Debug, Deserialize, Serialize, Clone)]
 pub struct StartingDate {
     #[def(1)]
     day: Option<u32>,

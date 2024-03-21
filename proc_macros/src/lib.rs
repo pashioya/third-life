@@ -3,7 +3,7 @@ extern crate proc_macro;
 
 use core::panic;
 
-use proc_macro::{TokenStream, Span};
+use proc_macro::TokenStream;
 use quote::{quote, format_ident};
 use syn::{parse_macro_input, DeriveInput, Data, PathArguments, GenericArgument, Path, Type};
 

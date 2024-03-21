@@ -72,6 +72,7 @@ pub struct MaleCitizenBundle {
     of: CitizenOf,
     male: Male,
     growing: StillGrowing,
+    youngling: Youngling,
 }
 
 impl MaleCitizenBundle {
@@ -92,12 +93,13 @@ impl MaleCitizenBundle {
                 genetic_weight,
                 height: NEW_BORN_HEIGHT,
                 weight: NEW_BORN_WEIGHT,
-                daily_growth: daily_growth,
-                daily_fattening: daily_fattening,
+                daily_growth,
+                daily_fattening,
             },
             of: CitizenOf { colony },
             male: Male,
             growing: StillGrowing,
+            youngling: Youngling,
         }
     }
 }
@@ -108,6 +110,7 @@ pub struct FemaleCitizenBundle {
     of: CitizenOf,
     female: Female,
     growing: StillGrowing,
+    youngling: Youngling,
 }
 
 impl FemaleCitizenBundle {
@@ -128,8 +131,8 @@ impl FemaleCitizenBundle {
                 genetic_weight,
                 height: NEW_BORN_HEIGHT,
                 weight: NEW_BORN_WEIGHT,
-                daily_growth: daily_growth,
-                daily_fattening: daily_fattening,
+                daily_growth,
+                daily_fattening,
             },
             of: CitizenOf { colony },
             female: Female {
@@ -137,6 +140,7 @@ impl FemaleCitizenBundle {
                 last_child_birth_date: None,
             },
             growing: StillGrowing,
+            youngling: Youngling
         }
     }
 }
