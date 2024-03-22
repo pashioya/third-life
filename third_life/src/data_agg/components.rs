@@ -1,18 +1,12 @@
 use std::{collections::HashMap, sync::Arc};
 
 use bevy::prelude::*;
-use influxdb2::Client;
 use sqlx::{Pool, Postgres};
 use uuid::Uuid;
 
 
 
 
-#[derive(Resource)]
-pub struct InfluxDB {
-    pub client: Arc<Client>,
-    pub bucket: Arc<String>,
-}
 
 #[derive(Resource)]
 pub struct PostgresDB {
@@ -21,15 +15,6 @@ pub struct PostgresDB {
 
 #[derive(Resource)]
 pub struct SimulationUuid(pub Uuid);
-
-impl InfluxDB {
-    pub fn new(client: Client, bucket: String) -> Self {
-        InfluxDB { client: client.into(), bucket: bucket.into() }
-    }
-    pub fn get(&self) -> (Arc<Client>, Arc<String>) {
-        (Arc::clone(&self.client), Arc::clone(&self.bucket))
-    }
-}
 
 impl PostgresDB {
     pub fn new(pool: Pool<Postgres>) -> Self {

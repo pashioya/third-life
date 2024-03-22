@@ -24,6 +24,8 @@ pub struct WorldConfig {
     name: String,
     #[def(300.0)]
     size: Option<f32>,
+    #[def(8.)]
+    work_day_length: Option<f32>,
     world_position: (isize, isize),
     #[def(PopulationConfig::def_conf())]
     population: Option<PopulationConfig>,
@@ -129,8 +131,12 @@ pub struct EnvironmentConfig {
 pub struct FoodConfig {
     #[def(6)]
     cow_farms: Option<usize>,
+    #[def(34.0)]
+    cow_farm_size: Option<f32>,
     #[def(4)]
     wheat_farms: Option<usize>,
+    #[def(17.4)]
+    wheat_farm_size: Option<f32>,
     #[def(5000.0)]
     starting_beef: Option<f32>,
     #[def(5000.0)]

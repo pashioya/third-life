@@ -1,7 +1,6 @@
 mod components;
 mod postgres_types;
 mod postgres_conn;
-mod utils;
 mod all_data_query;
 
 use core::panic;
@@ -13,7 +12,7 @@ use bevy_egui::EguiContexts;
 
 use self::all_data_query::{event_sourcer, record_daily_data, DataRecordingPlugin};
 use self::components::{
-    InfluxDB, LoadedDatabaseEvent, LoadingDatabase, LoadingDatabases, RegisterDatabseEvent,
+    LoadedDatabaseEvent, LoadingDatabase, LoadingDatabases, RegisterDatabseEvent,
     ShouldSaveToDatabase, SimulationUuid,
 };
 use self::postgres_conn::PostgresDbPlugin;

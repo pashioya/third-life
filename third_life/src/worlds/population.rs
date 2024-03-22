@@ -10,7 +10,6 @@ use components::*;
 use dying::*;
 use events::*;
 use giving_birth::*;
-use num_traits::float::FloatCore;
 use relationships::*;
 
 use crate::{
