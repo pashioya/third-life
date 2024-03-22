@@ -22,10 +22,9 @@ pub struct ColonyAnimationBundle {
 
 impl ColonyAnimationBundle {
     pub fn new(
-        name: String,
         (world_position_x, world_position_y): (isize, isize),
         sprite_sheet: Handle<Image>,
-        mut texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
+        texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
         sprite: SpriteConfig,
     ) -> Self {
         let num_frames = sprite.frames();

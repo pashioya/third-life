@@ -1,4 +1,4 @@
-use bevy::{prelude::*, reflect::List};
+use bevy::prelude::*;
 use std::{collections::HashMap, time::Duration, usize};
 
 #[derive(Component)]
@@ -22,8 +22,8 @@ impl WorldUiSize{
 #[derive(Component, PartialEq, Eq, Hash, Debug, Clone, Copy)]
 pub struct WorldUiEntity(pub Entity);
 
-#[derive(Component)]
-pub struct PopulationHistogram {
+#[derive(Component, Default)]
+pub struct PopulationUiData {
     pub count: usize,
     pub working_pop: usize,
     pub younglings: usize,
@@ -31,6 +31,14 @@ pub struct PopulationHistogram {
     pub average_age: usize,
     pub ages: HashMap<usize, usize>,
     pub average_children_per_mother: f32,
+    pub births_per_age: HashMap<usize, usize>,
+    pub num_couples: usize,
+    pub males: usize,
+    pub females: usize,
+    pub working_in_wheat: usize,
+    pub working_in_beef: usize,
+    pub working_not_in_farming: usize,
+    pub total_births: usize,
 }
 
 #[derive(Component)]
@@ -108,7 +116,7 @@ pub struct WorldUiBundle {
     pub name: WorldUiName,
     pub size: WorldUiSize,
     pub entity: WorldUiEntity,
-    pub pop: PopulationHistogram,
+    pub pop: PopulationUiData,
     pub deaths: PopulationDeathLines,
     pub farms_count: FarmsCount,
     pub prod: ResourceProduction,
@@ -123,15 +131,7 @@ impl WorldUiBundle {
             name: WorldUiName(name),
             size: WorldUiSize::new(size),
             entity: WorldUiEntity(entity),
-            pop: PopulationHistogram {
-                count: 0,
-                working_pop: 0,
-                younglings: 0,
-                retirees: 0,
-                average_age: 0,
-                ages: HashMap::new(),
-                average_children_per_mother: 0.0,
-            },
+            pop: PopulationUiData::default(),
             deaths: PopulationDeathLines::new(),
             farms_count: FarmsCount::default(),
             prod: ResourceProduction::default(),

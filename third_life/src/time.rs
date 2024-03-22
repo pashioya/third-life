@@ -58,7 +58,7 @@ fn update_date(
     day_length.timer.tick(time.delta());
 
     if day_length.timer.finished() {
-        game_date.date = game_date.date + Duration::days(1);
+        game_date.date = game_date.date + Duration::try_days(1).unwrap();
 
         if game_date.date.month() != game_date.date.pred_opt().unwrap().month() {
             month_changed_writer.send(MonthChanged);

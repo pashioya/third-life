@@ -90,7 +90,7 @@ pub fn derive_getters(input: TokenStream) -> TokenStream {
     expanded.to_string().parse().unwrap()
 }
 
-fn expand_getters(mut ast: DeriveInput) -> TokenStream {
+fn expand_getters(ast: DeriveInput) -> TokenStream {
     // println!("Defining getters for: {:#?}", ast);
 
     //extract_attrs(&mut ast.attrs, "getters");

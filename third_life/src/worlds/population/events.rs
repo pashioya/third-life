@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub struct CitizenCreated {
     pub age: usize,
     pub colony: Entity,
+    pub mother_age: Option<usize>,
 }
 
 #[derive(Hash, PartialEq, Eq)]

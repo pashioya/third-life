@@ -1,7 +1,11 @@
+
 use bevy::prelude::*;
 use chrono::NaiveDate;
+use rand::Rng;
+use rand_distr::{Distribution, Normal};
 
-use crate::worlds::food::components::FedStatus;
+
+use crate::{common::utils::roll_chance, worlds::{config::PopulationConfig, food::components::FedStatus}};
 
 use super::super::config;
 
@@ -22,6 +26,12 @@ pub struct Population {
     pub average_children_per_mother: f32,
     pub yearly_infant_deaths: usize,
     pub yearly_infant_births: usize,
+    pub num_couples: usize,
+    pub males: usize,
+    pub females: usize,
+    pub working_in_wheat: usize,
+    pub working_in_beef: usize,
+    pub working_not_in_farming: usize,
 }
 
 #[derive(Component, Default)]
@@ -66,81 +76,150 @@ impl DietMacroRatios {
     }
 }
 
-#[derive(Bundle)]
-pub struct MaleCitizenBundle {
-    citizen: Citizen,
-    of: CitizenOf,
-    male: Male,
-    growing: StillGrowing,
-    youngling: Youngling,
+pub struct CitizenBuilder {
+    age: Option<usize>,
+    bundle: Option<CitizenBundle>,
+    youngling: Option<Youngling>,
+    growing: Option<StillGrowing>,
+    retiree: Option<Retiree>,
+    male: Option<Male>,
+    female: Option<Female>,
 }
 
-impl MaleCitizenBundle {
-    pub fn new(
-        name: String,
-        colony: Entity,
-        birthday: NaiveDate,
-        genetic_height: f32,
-        genetic_weight: f32,
-        daily_growth: f32,
-        daily_fattening: f32,
+impl CitizenBuilder {
+    pub fn start(
+        game_date: NaiveDate, colony: Entity, birthday: NaiveDate,
+        pop_config: PopulationConfig
     ) -> Self {
-        Self {
-            citizen: Citizen {
-                name,
-                birthday,
-                genetic_height,
-                genetic_weight,
-                height: NEW_BORN_HEIGHT,
-                weight: NEW_BORN_WEIGHT,
-                daily_growth,
-                daily_fattening,
-            },
-            of: CitizenOf { colony },
-            male: Male,
-            growing: StillGrowing,
-            youngling: Youngling,
+        let age = game_date.years_since(birthday).unwrap() as usize;
+        let mut builder = Self { 
+            bundle: Some(CitizenBundle::new(age, colony, birthday, pop_config.clone())), 
+            age: Some(age), youngling: None, growing: None, retiree: None,
+            male: None, female: None,
+        };
+        if age < 25 {
+            builder.growing();
+
         }
+        if age < pop_config.age_of_adult() {
+            builder.youngling();
+        }
+        if age > pop_config.age_of_retirement() {
+            builder.retiree();
+        }
+
+        builder
+    }
+    fn growing(&mut self) { self.growing = Some(StillGrowing); }
+    fn youngling(&mut self) { self.youngling = Some(Youngling); }
+    fn retiree(&mut self) { self.retiree = Some(Retiree); }
+    pub fn male(mut self) -> Self {
+        self.male = Some(Male);
+        self.female = None;
+        self
+    }
+    pub fn female(mut self) -> Self {
+        let children_had = if self.age.unwrap() > 18 {
+            rand::thread_rng().gen_range(0..5)
+        } else { 0 };
+        self.female = Some(Female::grown(children_had, None));
+        self
+    }
+    
+    pub fn build(self) -> Result<CreatedCitizen, ()> {
+        Ok(match (
+            self.bundle, self.youngling, self.growing, self.retiree,
+            self.male, self.female
+        ) {
+            (None, _, _, _, _, _) => Err(())?,
+            (Some(bundle), Some(youngling), Some(growing), None, Some(male), None) => 
+                CreatedCitizen::NewbornMaleCitizen((bundle, male, growing, youngling)),
+            (Some(bundle), Some(youngling), Some(growing), None, None, Some(female)) =>
+                CreatedCitizen::NewbornFemaleCitizen((bundle, female, growing, youngling)),
+            (Some(bundle), None, Some(growing), None, Some(male), None) => 
+                CreatedCitizen::AdultGrowingMaleCitizen((bundle, male, growing)),
+            (Some(bundle), None, Some(growing), None, None, Some(female)) => 
+                CreatedCitizen::AdultGrowingFemaleCitizen((bundle, female, growing)),
+            (Some(bundle), None, None, None, Some(male), None) =>
+                CreatedCitizen::GrownMaleCitizen((bundle, male)),
+            (Some(bundle), None, None, None, None, Some(female)) =>
+                CreatedCitizen::GrownFemaleCitizen((bundle, female)),
+            (Some(bundle), None, None, Some(retiree), Some(male), None) => 
+                CreatedCitizen::RetireeMaleCitizen((bundle, male, retiree)),
+            (Some(bundle), None, None, Some(retiree), None, Some(female)) =>
+                CreatedCitizen::RetireeFemaleCitizen((bundle, female, retiree)),
+            _ => Err(())?
+        })
     }
 }
 
-#[derive(Bundle)]
-pub struct FemaleCitizenBundle {
-    citizen: Citizen,
-    of: CitizenOf,
-    female: Female,
-    growing: StillGrowing,
-    youngling: Youngling,
+pub enum CreatedCitizen {
+    RetireeMaleCitizen((CitizenBundle, Male, Retiree)),
+    RetireeFemaleCitizen((CitizenBundle, Female, Retiree)),
+    GrownMaleCitizen((CitizenBundle, Male)),
+    GrownFemaleCitizen((CitizenBundle, Female)),
+    AdultGrowingMaleCitizen((CitizenBundle, Male, StillGrowing)),
+    AdultGrowingFemaleCitizen((CitizenBundle, Female, StillGrowing)),
+    NewbornMaleCitizen((CitizenBundle, Male, StillGrowing, Youngling)),
+    NewbornFemaleCitizen((CitizenBundle, Female, StillGrowing, Youngling)),
+
 }
 
-impl FemaleCitizenBundle {
-    pub fn new(
-        name: String,
-        colony: Entity,
-        birthday: NaiveDate,
-        genetic_height: f32,
-        genetic_weight: f32,
-        daily_growth: f32,
-        daily_fattening: f32,   
+impl CreatedCitizen {
+    pub fn spawn(self, commands: &mut Commands) {
+        match self {
+            CreatedCitizen::RetireeMaleCitizen(t) => commands.spawn(t),
+            CreatedCitizen::RetireeFemaleCitizen(t) => commands.spawn(t), 
+            CreatedCitizen::GrownMaleCitizen(t) => commands.spawn(t), 
+            CreatedCitizen::GrownFemaleCitizen(t) => commands.spawn(t), 
+            CreatedCitizen::AdultGrowingMaleCitizen(t) => commands.spawn(t), 
+            CreatedCitizen::AdultGrowingFemaleCitizen(t) => commands.spawn(t), 
+            CreatedCitizen::NewbornMaleCitizen(t) => commands.spawn(t), 
+            CreatedCitizen::NewbornFemaleCitizen(t) => commands.spawn(t),
+        };
+    }
+}
+
+pub fn create_citizen(
+    game_date: NaiveDate, colony: Entity, birthday: NaiveDate,
+    pop_config: PopulationConfig
+) -> CreatedCitizen {
+    let mut builder = CitizenBuilder::start(game_date, colony, birthday, pop_config);
+    
+    builder = match roll_chance(50) {
+        true => builder.male(),
+        false => builder.female(),
+    };
+    builder.build().unwrap()
+}
+
+#[derive(Bundle)]
+pub struct CitizenBundle {
+    citizen: Citizen,
+    of: CitizenOf,
+}
+
+impl CitizenBundle {
+    fn new(
+        age: usize, colony: Entity, birthday: NaiveDate, 
+        pop_config: PopulationConfig
     ) -> Self {
-        Self {
-            citizen: Citizen {
-                name,
-                birthday,
-                genetic_height,
-                genetic_weight,
-                height: NEW_BORN_HEIGHT,
-                weight: NEW_BORN_WEIGHT,
-                daily_growth,
-                daily_fattening,
+        let genetic_height = Normal::new(pop_config.height_dist().average(), 7.0).unwrap().sample(&mut rand::thread_rng());
+        let genetic_weight = Normal::new(pop_config.weight_dist().average(), 10.0).unwrap().sample(&mut rand::thread_rng());
+
+        // amount of growth per day
+        let daily_growth = (genetic_height - NEW_BORN_HEIGHT)/ 9125.0;
+        let daily_fattening = (genetic_weight - NEW_BORN_WEIGHT) / 9125.0;
+
+        let height = (age * 365) as f32 * daily_growth + NEW_BORN_HEIGHT;
+        let weight = (age * 365) as f32 * daily_fattening + NEW_BORN_WEIGHT;
+        Self { 
+            citizen: Citizen { 
+                name: String::from("Name"), birthday, genetic_height,
+                genetic_weight, height, weight, daily_growth, daily_fattening
             },
-            of: CitizenOf { colony },
-            female: Female {
-                children_had: 0,
-                last_child_birth_date: None,
-            },
-            growing: StillGrowing,
-            youngling: Youngling
+            of: CitizenOf { colony }
+
         }
     }
 }
@@ -236,6 +315,17 @@ pub struct Female {
     pub last_child_birth_date: Option<NaiveDate>,
 }
 
+impl Female {
+    pub fn grown(
+        children_had: usize, last_child_birth_date: Option<NaiveDate>
+    ) -> Self {
+        Self { children_had, last_child_birth_date }
+    }
+    pub fn newborn() -> Self {
+        Self { children_had: 0, last_child_birth_date: None }
+    }
+}
+
 #[derive(Component)]
 pub struct Male;
 
@@ -262,9 +352,6 @@ pub struct StillGrowing;
 
 #[derive(Component)]
 pub struct Employed;
-
-#[derive(Component)]
-pub struct Employable;
 
 #[derive(Component)]
 pub struct Youngling;

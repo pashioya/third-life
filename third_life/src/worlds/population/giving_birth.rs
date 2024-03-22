@@ -9,7 +9,6 @@ use crate::{
 use bevy::prelude::*;
 use bevy_egui::egui::ahash::{HashMap, HashMapExt};
 use rand::{thread_rng, Rng};
-use rand_distr::{Distribution, Normal};
 use rnglib::{Language, RNG};
 
 use super::{components::*, events::*};
@@ -44,57 +43,29 @@ pub fn citizen_births(
     mut commands: Commands,
     mut date_event_reader: EventReader<DateChanged>,
     mut event_writer: EventWriter<CitizenCreated>,
-    mut pregnant_women: Query<(Entity, &mut Female, &mut Pregnancy, &CitizenOf), With<Pregnancy>>,
-    mut colonies: Query<(Entity, &mut Population, &WorldConfig), With<WorldColony>>,
+    mut pregnant_women: Query<(Entity, &Citizen, &mut Female, &mut Pregnancy, &CitizenOf), With<Pregnancy>>,
+    mut colonies: Query<(&mut Population, &WorldConfig), With<WorldColony>>,
 
 ) {
-    for date_event in date_event_reader.read() {
-        for (entity, mut w_female, pregnancy, citizen_of) in &mut pregnant_women.iter_mut() {
-            if pregnancy.baby_due_date == date_event.date {
-                for (colony, mut population, config) in colonies.iter_mut() {
-                    if citizen_of.colony == colony {
-                        let name = String::from("Name"); // get_randome_name();
-                        // if higher than 0.5 then the baby is likely lower than average, else higher.
-                        let genetic_height = Normal::new(config.population().height_dist().average(), 7.0).unwrap().sample(&mut rand::thread_rng());
-                        let genetic_weight = Normal::new(config.population().weight_dist().average(), 10.0).unwrap().sample(&mut rand::thread_rng());
+    if let Some(DateChanged { date }) = date_event_reader.read().last() {
+        for (entity, Citizen { birthday, .. }, mut w_female, pregnancy, CitizenOf { colony }) in &mut pregnant_women.iter_mut() {
+            if pregnancy.baby_due_date <= *date {
+                if let Ok((mut population, config)) = colonies.get_mut(*colony) {
+                    let mother_age = date.years_since(*birthday).unwrap() as usize;
+                    
+                    create_citizen(*date, *colony, *date, config.population())
+                        .spawn(&mut commands);
 
-                        // amount of growth per day
-                        let daily_growth = (genetic_height - NEW_BORN_HEIGHT)/ 9125.0;
-                        let daily_fattening = (genetic_weight - NEW_BORN_WEIGHT) / 9125.0;
-
-                        match roll_chance(50) {
-                            true => commands.spawn(
-                                MaleCitizenBundle::new(
-                                    name,
-                                    colony,
-                                    date_event.date,
-                                    genetic_height,
-                                    genetic_weight,
-                                    daily_growth,
-                                    daily_fattening
-                                )),
-                            false => commands.spawn(
-                                FemaleCitizenBundle::new(
-                                    name,
-                                    colony,
-                                    date_event.date,
-                                    genetic_height,
-                                    genetic_weight,
-                                    daily_growth,
-                                    daily_fattening
-                                )
-                            ),
-                        };
-                        w_female.children_had += 1;
-                        w_female.last_child_birth_date = Some(date_event.date);
-                        population.yearly_infant_births += 1;
-                        event_writer.send(CitizenCreated { age: 0, colony });
-                    }
-                }
-                commands.get_entity(entity).map(|mut e| {
-                    e.remove::<Pregnancy>();
-                    e.try_insert(Employable);
-                });
+                    w_female.children_had += 1;
+                    w_female.last_child_birth_date = Some(*date);
+                    population.yearly_infant_births += 1;
+                    event_writer.send(CitizenCreated { 
+                        age: 0, colony: *colony, mother_age: Some(mother_age)
+                    });
+                    commands.get_entity(entity).map(|mut e| {
+                        e.remove::<Pregnancy>();
+                    });
+                };
             }
         }
     }
@@ -111,7 +82,6 @@ pub fn init_miscarriage(
             if miscarriage_chance(game_date.date.years_since(w_citizen.birthday).unwrap() as u8) {
                 commands.get_entity(entity).map(|mut e| {
                     e.remove::<Pregnancy>();
-                    e.try_insert(Employable);
                 });
             }
         }
@@ -140,7 +110,7 @@ pub fn init_ovulation(
     for _ in event_reader.read() {
         for (entity, _) in &women {
             let ovulation_start_date =
-                game_date.date + chrono::Duration::days(thread_rng().gen_range(5..=20) as i64);
+                game_date.date + chrono::Duration::try_days(thread_rng().gen_range(5..=20) as i64).unwrap();
 
             commands.get_entity(entity).map(|mut e| {
                 e.try_insert(Ovulation {
@@ -159,7 +129,7 @@ pub fn end_ovulation(
     for date_event in date_event_reader.read() {
         for (entity, _, ovulation) in &women {
             if ovulation.ovulation_start_date
-                + chrono::Duration::days(thread_rng().gen_range(5..=6))
+                + chrono::Duration::try_days(thread_rng().gen_range(5..=6)).unwrap()
                 == date_event.date
             {
                 commands.get_entity(entity).map(|mut e| {
@@ -199,7 +169,7 @@ pub fn init_pregnancies(
 
             if !female.last_child_birth_date.is_none()
                 && (female.last_child_birth_date).unwrap()
-                    + chrono::Duration::days(thread_rng().gen_range(547..=650))
+                    + chrono::Duration::try_days(thread_rng().gen_range(547..=650)).unwrap()
                     > date_event.date
             {
                 continue;
@@ -219,7 +189,7 @@ pub fn init_pregnancies(
                         e.try_insert(Pregnancy {
                             baby_due_date: date_event
                                 .date
-                                .checked_add_signed(chrono::Duration::days(pregnancy_term))
+                                .checked_add_signed(chrono::Duration::try_days(pregnancy_term).unwrap())
                                 .unwrap(),
                         });
                     });

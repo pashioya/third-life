@@ -2,15 +2,17 @@
     "worlds": [
         {
             "name": "Earth",
-            "world_position": [-300, 0],
+            "size": 5000000,
+            "work_day_length": 8.0,
+            "world_position": [-150, 0],
             "population": {
                 "population_size": 500,
                 "age_of_adult": 18,
                 "age_of_retirement": 65,
                 "population_dist": {
-                    "location": 18.0,
-                    "scale": 12.0,
-                    "shape": 10.0
+                    "location": 5.0,
+                    "scale": 30.0,
+                    "shape": 20.0
                 },
                 "life_expectancy_spread": 6,
                 "weight_dist": {
@@ -39,9 +41,11 @@
             },
             "food": {
                 "cow_farms": 5,
+                "cow_farm_size": 34.0,
                 "wheat_farms": 2,
-                "starting_beef": 30000.0,
-                "starting_carb": 30000.0,
+                "wheat_farm_size": 17.4,
+                "starting_beef": 100000.0,
+                "starting_carb": 100000.0,
                 "min_surplus_multiplier": 1.5
             },
             "sprite": {
@@ -54,13 +58,29 @@
         },
         {
             "name": "Mars",
-            "world_position": [0, 0],
+            "size": 5000,
+            "work_day_length": 10.0,
+            "world_position": [0, 150],
             "population": {
                 "population_size": 500,
+                "age_of_adult": 18,
+                "age_of_retirement": 65,
                 "population_dist": {
-                    "location": 18.0,
-                    "scale": 24.0,
-                    "shape": 10.0
+                    "location": 5.0,
+                    "scale": 30.0,
+                    "shape": 20.0
+                },
+                "life_expectancy_spread": 6,
+                "weight_dist": {
+                    "average": 70
+                },
+                "height_dist": {
+                    "average": 175
+                },
+                "diet_macro_ratios": {
+                    "protein": 20,
+                    "fat": 30,
+                    "carbs": 50
                 }
             },
             "government": {
@@ -77,9 +97,11 @@
             },
             "food": {
                 "cow_farms": 5,
+                "cow_farm_size": 34.0,
                 "wheat_farms": 2,
-                "starting_beef": 30000.0,
-                "starting_carb": 30000.0,
+                "wheat_farm_size": 17.4,
+                "starting_beef": 100000.0,
+                "starting_carb": 100000.0,
                 "min_surplus_multiplier": 1.5
             },
             "sprite": {
@@ -88,44 +110,6 @@
                 "frames_layout": [60, 1],
                 "shape": [48, 48],
                 "animation_timer": 0.1
-            }
-        },
-        {
-            "name": "Saturn",
-            "world_position": [300, 0],
-            "population": {
-                "population_size": 500,
-                "population_dist": {
-                    "location": 18.0,
-                    "scale": 6.0,
-                    "shape": 10.0
-                }
-            },
-            "government": {
-                "citizen_payout": 0.5,
-                "civil_spending": 25,
-                "sanitation_spending": 25,
-                "social_spending": 25,
-                "environmental_spending": 25
-            },
-            "environment": {
-                "urbanization": 0.75,
-                "env_health": 0.01,
-                "ecosystem_vitylity": 0.01
-            },
-            "food": {
-                "cow_farms": 5,
-                "wheat_farms": 2,
-                "starting_beef": 30000.0,
-                "starting_carb": 30000.0,
-                "min_surplus_multiplier": 1.5
-            },
-            "sprite": {
-                "sprite_sheet": "jungle.png",
-                "frames": 120,
-                "frames_layout": [120, 1],
-                "shape": [48, 48],
-                "animation_timer": 0.2
             }
         }
     ]

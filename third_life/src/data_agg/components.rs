@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 
 
+
 #[derive(Resource)]
 pub struct PostgresDB {
     pub pool: Arc<Pool<Postgres>>,
@@ -15,6 +16,7 @@ pub struct PostgresDB {
 
 #[derive(Resource)]
 pub struct SimulationUuid(pub Uuid);
+
 
 impl PostgresDB {
     pub fn new(pool: Pool<Postgres>) -> Self {

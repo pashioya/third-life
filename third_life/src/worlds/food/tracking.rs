@@ -1,6 +1,6 @@
-use bevy::{prelude::*};
+use bevy::prelude::*;
 
-use crate::{worlds::{config::WorldConfig, init_colonies, WorldColony}, SimulationState};
+use crate::{worlds::{init_colonies, WorldColony}, SimulationState};
 
 use super::{CarbCreated, MeatCreated};
 

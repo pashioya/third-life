@@ -27,6 +27,13 @@ pub struct ColonyRecord {
     pub carb_consumed: f32,
     pub meat_produced: f32,
     pub carb_produced: f32,
+    pub num_couples: i32,
+    pub males: i32,
+    pub females: i32,
+    pub working_in_wheat: i32,
+    pub working_in_beef: i32,
+    pub working_not_in_farming: i32,
+    pub total_births: i32,
 }
 
 impl ColonyRecord {
