@@ -7,7 +7,7 @@ use population_ui::*;
 use resources_ui::*;
 
 use bevy::prelude::*;
-use bevy_egui::{EguiContexts, egui::Window};
+use bevy_egui::{egui::{ScrollArea, Window}, EguiContexts};
 use chrono::NaiveDate;
 use egui_plot::{PlotPoint, PlotPoints};
 use crate::{config::ThirdLifeConfig, time::GameDate, SimulationState};
@@ -43,7 +43,7 @@ fn display_world_uis(
         &WorldUiName,
         &WorldUiSize,
         &ResourceStorage,
-        &PopulationHistogram,
+        &PopulationUiData,
         &PopulationDeathLines,
         &FarmsCount,
         &ResourceProduction,
@@ -53,20 +53,25 @@ fn display_world_uis(
     for (world, size, stor, pop, death, farms, prod, cons) in &ui_data {
         let name = &world.0;
         Window::new(format!("Window of {name}"))
-            .default_open(false)
+            .default_open(true)
             .show(contexts.ctx_mut(), |ui| {
-                ui.label(format!("Size {:.0}/{:.0}", size.used, size.size));
-                let start_date = NaiveDate::from_ymd_opt(config.starting_day().year(),config.starting_day().month(), config.starting_day().day()).unwrap();
-                ui.label(format!("Date: {}", game_date.date));
-                ui.label(format!("Years Elapsed: {}", game_date.date.years_since(start_date).unwrap()));
-                ui.separator();
-                resources(name, ui, &stor, &farms, &prod, &cons);
-                ui.separator();
-                general_pop(ui, &pop);
-                ui.separator();
-                age_histogram(name, ui, &pop.ages);
-                ui.separator();
-                death_lines(name, ui, death);
+                ScrollArea::new([false, true])
+                    .show(ui, |ui| {
+                        ui.label(format!("Size {:.0}/{:.0}", size.used, size.size));
+                        let start_date = NaiveDate::from_ymd_opt(config.starting_day().year(),config.starting_day().month(), config.starting_day().day()).unwrap();
+                        ui.label(format!("Date: {}", game_date.date));
+                        ui.label(format!("Years Elapsed: {}", game_date.date.years_since(start_date).unwrap()));
+                        ui.separator();
+                        resources(name, ui, &stor, &farms, &prod, &cons);
+                        ui.separator();
+                        general_pop(ui, &pop);
+                        ui.separator();
+                        age_histogram(name, ui, &pop.ages);
+                        ui.separator();
+                        death_lines(name, ui, death);
+                        ui.separator();
+                        age_histogram(name, ui, &pop.births_per_age);
+                    });
             });
     }
 }

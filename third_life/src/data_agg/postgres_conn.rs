@@ -121,7 +121,14 @@ fn init_postgres_db(
                         carb_quality FLOAT4 not null,
                         carb_consumed FLOAT4 not null,
                         meat_produced FLOAT4 not null,
-                        carb_produced FLOAT4 not null
+                        carb_produced FLOAT4 not null,
+                        num_couples INT4 not null,
+                        males INT4 not null,
+                        females INT4 not null,
+                        working_in_wheat INT4 not null,
+                        working_in_beef INT4 not null,
+                        working_not_in_farming INT4 not null,
+                        total_births INT4 not null
                     );
                 "#)
                     .execute(&pool)

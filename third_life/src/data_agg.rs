@@ -10,7 +10,7 @@ use bevy::prelude::*;
 use bevy_egui::egui::Window;
 use bevy_egui::EguiContexts;
 
-use self::all_data_query::{event_sourcer, record_daily_data, DataRecordingPlugin};
+use self::all_data_query::DataRecordingPlugin;
 use self::components::{
     LoadedDatabaseEvent, LoadingDatabase, LoadingDatabases, RegisterDatabseEvent,
     ShouldSaveToDatabase, SimulationUuid,

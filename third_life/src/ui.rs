@@ -21,5 +21,5 @@ fn configure_visuals_system(
         ..Default::default()
     });
 
-    egui_settings.scale_factor = 0.8;
+    egui_settings.scale_factor = 1.2;
 }

@@ -10,5 +10,8 @@ third_life/assets/config/*
 
 **/.env
 influxdb-grafana/postgres/
+<<<<<<< HEAD
+=======
 influxdb-grafana/influxdb2
 
+>>>>>>> dev

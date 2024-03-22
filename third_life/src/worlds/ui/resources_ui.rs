@@ -1,19 +1,18 @@
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use bevy::prelude::*;
-use bevy_egui::{EguiContexts, egui::{Color32, Window, Ui}};
-use chrono::NaiveDate;
-use egui_plot::{Plot, BarChart, Legend, Bar, PlotPoint, PlotPoints, Line};
+use bevy_egui::egui::{Color32, Ui};
+use egui_plot::{Plot, Line};
 use crate::worlds::{
     food::{
         components::{
             CarbResource, CowFarmOf, MeatResource, ResourceOf, WheatFarmOf,
         },
-        events::{CarbCreated, MeatCreated}, tracking::{CarbProduced, MeatProduced},
+        tracking::{CarbProduced, MeatProduced},
     }, population::components::{CarbConsumed, MeatConsumed}, ui::components::*
 };
 
-use crate::{config::ThirdLifeConfig, time::GameDate, SimulationState};
+use crate::SimulationState;
 
 use super::f32_to_plotpoints;
 
@@ -88,8 +87,8 @@ pub fn resources_changed(
 }
 
 fn update_ui_farms_count(
-    cow_farms: Query<(&CowFarmOf)>,
-    wheat_farms: Query<(&WheatFarmOf)>,
+    cow_farms: Query<&CowFarmOf>,
+    wheat_farms: Query<&WheatFarmOf>,
     mut ui_data: Query<(&WorldUiEntity, &mut FarmsCount)>,
 ) {
     let cow_farms_map = cow_farms.iter().fold(
@@ -168,15 +167,15 @@ pub fn resources(
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
             ui.label(format!(
-                "Meat Farms: {:?} (+{:?}: -{:?})",
-                farms.meat, prod.meat, cons.meat
-            ));
+                    "Meat Farms: {:?} (+{:?}: -{:?})",
+                    farms.meat, prod.meat, cons.meat
+                    ));
             ui.label(format!("Meat in storage {:.2}", stor.meat.last().unwrap()));
             plot_resource_line(format!("Meat Line {name}"), ui, &stor.meat);
             ui.label(format!(
-                "Carb Farms: {:?} (+{:?}: -{:?})",
-                farms.carb, prod.carb, cons.carb
-            ));
+                    "Carb Farms: {:?} (+{:?}: -{:?})",
+                    farms.carb, prod.carb, cons.carb
+                    ));
             ui.label(format!("Carbs in storage {:.2}", stor.carb.last().unwrap()));
             plot_resource_line(format!("Carb Line {name}"), ui, &stor.carb);
         });
@@ -185,11 +184,12 @@ pub fn resources(
 
 pub fn plot_resource_line(label: String, ui: &mut Ui, vec: &Vec<f32>) {
     Plot::new(label)
-        .height(75.)
-        .width(400.)
+        .height(100.)
+        .width(ui.available_width())
         .allow_zoom(false)
         .allow_scroll(false)
         .allow_drag(false)
+        .include_y(0.)
         .show(ui, |plot_ui| {
             plot_ui.line(
                 Line::new(f32_to_plotpoints(vec))

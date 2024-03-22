@@ -1,9 +1,8 @@
 
-use crate::{worlds::{ui::components::*, population::{events::{CitizenCreated, CitizenDied, DeathReason}, components::{Citizen, CitizenOf, Population}}}, time::DateChanged, SimulationState};
+use crate::{worlds::{ui::components::*, population::{events::{CitizenCreated, CitizenDied, DeathReason}, components::{Citizen, CitizenOf, Population}}}, SimulationState};
 use std::collections::HashMap;
-use bevy::{prelude::*, reflect::List};
-use bevy_egui::{EguiContexts, egui::{Color32, Ui}};
-use chrono::NaiveDate;
+use bevy::prelude::*;
+use bevy_egui::egui::{Color32, Ui};
 use egui_plot::{Plot, BarChart, Legend, Bar, Line};
 use crate::time::GameDate;
 
@@ -24,24 +23,30 @@ impl Plugin for PopulationUiPlugin {
 }
 
 pub fn add_citizens_to_population_histogram(
-    mut pop_histograms: Query<(&WorldUiEntity, &mut PopulationHistogram)>,
+    mut pop_histograms: Query<(&WorldUiEntity, &mut PopulationUiData)>,
     mut citizen_created: EventReader<CitizenCreated>,
 ) {
     let mut map = pop_histograms.iter_mut().map(|(e, p)| (e.0, p)).collect::<HashMap<_, _>>();
-    for created_event in citizen_created.read() {
-        let Some(hist) = map.get_mut(&created_event.colony) else {
+    for CitizenCreated { age, colony, mother_age } in citizen_created.read() {
+        let Some(pop_data) = map.get_mut(colony) else {
             continue;
         };
-        *hist.ages
-            .entry(created_event.age)
+        *pop_data.ages
+            .entry(*age)
             .or_insert(0) += 1;
+        if let Some(mother_age) = mother_age {
+            *pop_data.births_per_age
+                .entry(*mother_age)
+                .or_insert(0) += 1;
+            pop_data.total_births += 1;
+        }
     }
 }
 
 pub fn update_ages(
     citizens: Query<(&Citizen, &CitizenOf)>,
     game_date: Res<GameDate>,
-    mut populations: Query<(&WorldUiEntity, &mut PopulationHistogram)>
+    mut populations: Query<(&WorldUiEntity, &mut PopulationUiData)>
 ) {
     let map = populations.iter_mut().map(|(e, p)| (e.0, p)).collect::<HashMap<_, _>>();
     let populations_map = citizens.into_iter().fold(
@@ -65,7 +70,7 @@ pub fn update_ages(
 
 pub fn update_general_pop(
     query: Query<(Entity, &Population)>,
-    mut populations: Query<(&WorldUiEntity, &mut PopulationHistogram)>
+    mut populations: Query<(&WorldUiEntity, &mut PopulationUiData)>
 ) {
     let mut map = populations.iter_mut().map(|(e, p)| (e.0, p)).collect::<HashMap<_, _>>();
     for (col, population) in query.iter() {
@@ -77,6 +82,12 @@ pub fn update_general_pop(
                 p.retirees = population.retirees;
                 p.average_age = population.average_age;
                 p.average_children_per_mother = population.average_children_per_mother;
+                p.num_couples = population.num_couples;
+                p.males = population.males;
+                p.females = population.females;
+                p.working_in_wheat = population.working_in_wheat;
+                p.working_in_beef = population.working_in_beef;
+                p.working_not_in_farming = population.working_not_in_farming;
             }
             None => ()
         }
@@ -85,15 +96,34 @@ pub fn update_general_pop(
 
 pub fn general_pop(
     ui: &mut Ui,
-    pop: &PopulationHistogram,
+    pop: &PopulationUiData,
 ) {
-    ui.horizontal(|ui| {
-        ui.label(format!("Pop count: {:?}",pop.count));
-        ui.label(format!("Working Pop: {:?}",pop.working_pop));
-        ui.label(format!("Younglings count: {:?}",pop.younglings));
-        ui.label(format!("Retirees count: {:?}",pop.retirees));
-        ui.label(format!("Average Age: {:?}", pop.average_age));
-        ui.label(format!("Average Children per Mother: {:?}", pop.average_children_per_mother));
+    ui.group(|ui|{
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label(format!("Average Age: {:?}", pop.average_age));
+                ui.label(format!("Total pop: {:?}",pop.count));
+                ui.label(format!("Employable Pop: {:?}",pop.working_pop));
+            });
+            ui.vertical(|ui| {
+                ui.label(format!("Younglings: {:?}",pop.younglings));
+                ui.label(format!("Retirees: {:?}",pop.retirees));
+            });
+            ui.vertical(|ui| {
+                ui.label(format!("Wheat workers: {:?}",pop.working_in_wheat));
+                ui.label(format!("Beef workers: {:?}", pop.working_in_beef));
+                ui.label(format!("Working not in farming: {:?}", pop.working_not_in_farming));
+            });
+        });
+    });
+    ui.group(|ui|{
+        ui.vertical(|ui| {
+            ui.label(format!("Couples: {:?}",pop.num_couples));
+            ui.label(format!("Average Children per Mother: {:.2}", pop.average_children_per_mother));
+            ui.label(format!("Total Births: {:.2}", pop.total_births));
+            ui.label(format!("Females: {:?}",pop.females));
+            ui.label(format!("Males: {:?}",pop.males));
+        });
     });
 }
 
@@ -118,6 +148,7 @@ pub fn age_histogram(
         .y_axis_width(3)
         .allow_zoom(false)
         .allow_drag(false)
+        .allow_scroll(false)
         .show(ui, |plot_ui| plot_ui.bar_chart(chart))
         .response;
 }
@@ -128,7 +159,10 @@ pub fn death_lines(
     deaths: &PopulationDeathLines
 ) {
     Plot::new(format!("Deaths on planet {planet_name}"))
-        .height(150.).width(400.)
+        .allow_zoom(false)
+        .allow_scroll(false)
+        .allow_drag(false)
+        .height(150.)
         .legend(Legend::default())
         .allow_zoom(false).allow_scroll(false).allow_drag(false)
         .show(ui, |plot_ui| {

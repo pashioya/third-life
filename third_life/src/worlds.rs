@@ -5,25 +5,25 @@ pub(crate) mod ui;
 pub(crate) mod env_and_infra;
 pub(crate) mod wealth;
 
-use bevy::{ecs::world, prelude::*};
+use bevy::prelude::*;
 
 use crate::{
-    animation::{AnimationIndex, AnimationTimer, ColonyAnimationBundle, SpriteSize},
+    animation::ColonyAnimationBundle,
     config::SelectedConfigPath,
     SimulationState,
 };
 
 use self::{
-    config::{SpriteConfig, WorldConfig, WorldsConfig, WorldsConfigPlugin},
+    config::{WorldConfig, WorldsConfig, WorldsConfigPlugin},
     env_and_infra::{components::ColonyInfraAndEnvBundle, InfrastructurePlugin},
     food::FoodPlugin,
     population::{
-        components::{DietMacroRatios, Population},
+        components::Population,
         PopulationPlugin,
     },
     ui::WorldsUiPlugin,
     wealth::{
-        components::{ColonyWealthBundle, Treasury},
+        components::ColonyWealthBundle,
         WealthPlugin,
     },
 };
@@ -137,7 +137,6 @@ impl WorldColonyBundle {
             entity: WorldEntity::new(world.name()),
             population: Population::default(),
             animation: ColonyAnimationBundle::new(
-                world.name(),
                 world.world_position(),
                 sprite_sheet,
                 texture_atlas_layouts,
