@@ -75,7 +75,7 @@ pub fn check_wheat_farms_counts(
         {
             let min_surplus = world_config.food().min_surplus_multiplier();
             if carb_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
-                let wheat_farm_size = 17.4;
+                let wheat_farm_size = world_config.food().wheat_farm_size();
                 if world_colony.space_left() > wheat_farm_size {
                     world_colony.used += wheat_farm_size;
                     commands.spawn((
@@ -177,7 +177,7 @@ pub fn work_farm(
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut wheat_farms: Query<(Entity, &mut WheatFarm, &WheatFarmOf)>,
     farmers: Query<(&WheatFarmer, &CitizenOf)>,
-    colonies: Query<(Entity, &CivilInfrastructure)>,
+    colonies: Query<(Entity, &CivilInfrastructure, &WorldConfig)>,
     mut carb_resources: Query<(&mut CarbResource, &ResourceOf)>,
     mut carb_created: EventWriter<CarbCreated>,
 ) {
@@ -203,8 +203,9 @@ pub fn work_farm(
 
         for (colony, farms) in farms_map {
             let farm_mech_value = colonies.get(colony).unwrap().1.farming_mechanization;
+            let work_day_length = colonies.get(colony).unwrap().2.work_day_length();
             for (farm_entity, farmer_count) in farms {
-                let available_work_hours = farmer_count as f32 * 8.0;
+                let available_work_hours = farmer_count as f32 * work_day_length;
                 let work_hours_per_hec = weighted_range(1098.0, 8.0, farm_mech_value);
                 let mut hec_worked = available_work_hours / work_hours_per_hec;
 

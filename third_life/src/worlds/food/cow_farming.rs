@@ -216,7 +216,8 @@ pub fn get_cow_farm_workers(
 
 pub fn work_cow_farm(
     mut day_changed_event_reader: EventReader<DateChanged>,
-    mut cow_farms: Query<(Entity, &mut CowFarm)>,
+    colonies_config: Query<(Entity, &WorldConfig)>,
+    mut cow_farms: Query<(Entity, &mut CowFarm, &CowFarmOf)>,
     farmers: Query<(&CowFarmer, &CitizenOf)>,
 ) {
     for _ in day_changed_event_reader.read() {
@@ -229,8 +230,8 @@ pub fn work_cow_farm(
         );
 
         for (farm_entity, farmer_count) in farmers_map {
-            let available_work_hours = farmer_count as f32 * 8.0;
-            let (_, mut cow_farm) = cow_farms.get_mut(farm_entity).unwrap();
+            let (_, mut cow_farm, CowFarmOf { colony }) = cow_farms.get_mut(farm_entity).unwrap();
+            let available_work_hours = farmer_count as f32 * colonies_config.get(*colony).unwrap().1.work_day_length();
             cow_farm.hours_worked += available_work_hours;
         }
     }
@@ -350,7 +351,7 @@ pub fn check_for_more_cow_farms(
             let min_surplus = world_config.food().min_surplus_multiplier();
 
             if meat_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
-                let cow_farm_size = 34.0;
+                let cow_farm_size = world_config.food().cow_farm_size();
                 if world_colony.space_left() > cow_farm_size {
                     world_colony.used += cow_farm_size;
                     let cow_farm_entity = commands

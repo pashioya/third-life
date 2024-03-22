@@ -66,7 +66,7 @@ fn init_food(
 ) {
     for (colony_entity, mut world_colony, world_config) in colonies.iter_mut() {
         let mut wheat_farms = Vec::new();
-        let wheat_farm_size = 17.4;
+        let wheat_farm_size = world_config.food().wheat_farm_size();
         for _ in 0..world_config.food().wheat_farms() {
             if world_colony.space_left() > wheat_farm_size {
                 world_colony.used += wheat_farm_size;
@@ -83,7 +83,7 @@ fn init_food(
         }
         commands.spawn_batch(wheat_farms);
 
-        let cow_farm_size = 34.0;
+        let cow_farm_size = world_config.food().cow_farm_size();
         for _ in 0..world_config.food().cow_farms() {
             if world_colony.space_left() > cow_farm_size {
                 world_colony.used += cow_farm_size;
