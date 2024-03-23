@@ -77,7 +77,7 @@ pub fn check_wheat_farms_counts(
             if carb_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
                 let wheat_farm_size = world_config.food().wheat_farm_size();
                 if world_colony.space_left() > wheat_farm_size {
-                    world_colony.used += wheat_farm_size;
+                    world_colony.take_up_farm_space(wheat_farm_size);
                     commands.spawn((
                         WheatFarm {
                             size: wheat_farm_size,

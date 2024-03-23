@@ -1,3 +1,5 @@
+//! Here 0 is always the bad value and 1 is the good value!
+
 use bevy::prelude::*;
 
 #[derive(Bundle, Default)]
@@ -12,31 +14,28 @@ pub struct ColonyInfraAndEnvBundle {
 /// Power, Water, Sewage and so on
 /// Calculate the urbanization index using the following formula:
 /// Urbanization Ratio = 1 - (Number of Farmers / Total Workforce)
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct CivilInfrastructure {
     pub urbanization_index: f32,
     // number between 0 and 1 to define how mechanized farming is
     pub farming_mechanization: f32,
 }
 
-impl Default for CivilInfrastructure {
-    fn default() -> Self {
-        Self {
-            urbanization_index: 0.,
-            farming_mechanization: 0.5,
-        }
-    }
-}
-
 impl CivilInfrastructure {
-    pub fn update(&mut self, work_force: usize, farmers_count: usize) {
+    pub fn update(
+        &mut self, spending: f32,
+        work_force: usize, farmers_count: usize
+    ) {
+        self.farming_mechanization_fn(spending);
         self.urbanization_index_fn(work_force, farmers_count);
     }
+    fn farming_mechanization_fn(&mut self, spending: f32) {
+        self.farming_mechanization = corr_ln(
+            0.38, -0.6, spending
+        ).clamp(0., 1.);
+    }
     fn urbanization_index_fn(&mut self, work_force: usize, farmers_count: usize) {
-        self.urbanization_index = 1.0 - (farmers_count as f32 / work_force as f32);
-        if self.urbanization_index.is_nan() {
-            self.urbanization_index = 0.0;
-        }
+        self.urbanization_index = (1.0 - (farmers_count as f32 / work_force as f32)).clamp(0., 1.);
     }
 }
 
@@ -63,10 +62,10 @@ impl SanitationInfrastructure {
         self.live_birth_mortality_rate_fn(spending);
     }
     fn health_index_score_fn(&mut self, spending: f32) {
-        self.health_index_score = corr_ln(5.00186, 68.60778, spending);
+        self.health_index_score = corr_ln(5.00186, 68.60778, spending).clamp(0., 1.);
     }
     fn live_birth_mortality_rate_fn(&mut self, spending: f32) {
-        self.live_birth_mortality_rate = corr_ln(-0.00260, 0.00923, spending);
+        self.live_birth_mortality_rate = corr_ln(-0.00260, 0.00923, spending + 0.01).clamp(0., 1.);
     }
     pub fn actual_infant_mortality_rate_fn(
         &mut self,
@@ -107,17 +106,44 @@ pub struct SocialInfrastructure {}
 /// - urban particulates
 #[derive(Component, Default)]
 pub struct EnvironmentalHealth {
-    pollution_intensity_index: f32,
+    /// affected by density of human spacing
+    pub indoor_air_pollution: f32,
+    /// affected by spending
+    pub drinking_water: f32,
+    /// affected by the human space in relation to total space
+    pub urban_particulates: f32,
 }
 
 impl EnvironmentalHealth {
-    pub fn update(&mut self, spending: f32) {
-        self.pollution_intensity_index_fn(spending);
+    pub fn update(
+        &mut self, spending: f32, space_per_human: f32, unused_space: f32,
+        human_space: f32, humans: usize
+    ) {
+        self.indoor_air_pollution_fn(space_per_human);
+        self.drinking_water_fn(spending);
+        self.urban_particulates_fn(unused_space, human_space, humans);
     }
-    fn pollution_intensity_index_fn(&mut self, spending: f32) {
-        // FIXME: Find a proper correlation formula
-        self.pollution_intensity_index = corr_ln(0.00001, 0.00001, spending);
+    pub fn total_avg_val(&self) -> f32 {
+        (self.indoor_air_pollution + self.drinking_water + self.urban_particulates) / 3.
     }
+    fn indoor_air_pollution_fn(
+        &mut self, space_per_human: f32
+    ) {
+        self.indoor_air_pollution = corr_ln(
+            0.38, -0.6, space_per_human * 10_000.
+        ).clamp(0., 1.);
+    }
+    fn drinking_water_fn(&mut self, spending: f32) {
+        self.drinking_water = corr_ln(0.17, 0.1, spending).clamp(0., 1.);
+    }
+    fn urban_particulates_fn(
+        &mut self, unused_space: f32, human_space: f32, humans: usize
+    ) {
+        self.urban_particulates = corr_ln(
+            0.35, -1., (unused_space + human_space) * 10_000. / humans as f32
+        ).clamp(0., 1.);
+    }
+    
 }
 
 /// Things that are indirectly affected by humans only when the expand to
@@ -128,17 +154,38 @@ impl EnvironmentalHealth {
 /// - sustainable energy
 #[derive(Component, Default)]
 pub struct EcosystemVitality {
-    air_quality_index: f32,
+    /// affected by spending on the ecosystem
+    pub air_quality_index: f32,
+    /// affected by ratio of unused land to total land
+    pub productive_natural_resources: f32,
+    /// affected by ratio of farm land to natural land
+    pub biodiversity: f32,
 }
 
 impl EcosystemVitality {
-    pub fn update(&mut self, spending: f32) {
+    pub fn update(
+        &mut self, spending: f32,
+        unused_land: f32, farm_land: f32, human_land: f32,
+    ) {
         self.air_quality_index_fn(spending);
+        self.productive_natural_resources_fn(
+            unused_land, unused_land + farm_land + human_land
+        );
+        self.biodiversity_fn(unused_land, farm_land);
+    }
+    pub fn total_avg_val(&self) -> f32 {
+        (self.air_quality_index + self.productive_natural_resources + self.biodiversity) / 3.
     }
     fn air_quality_index_fn(&mut self, spending: f32) {
-        // FIXME: Find a proper correlation formula
-        self.air_quality_index = corr_ln(0.00001, 0.00001, spending);
+        self.air_quality_index = corr_ln(0.17, 0.1, spending).clamp(0., 1.);
     }
+    fn productive_natural_resources_fn(&mut self, unused_land: f32, total_land: f32) {
+        self.productive_natural_resources = (unused_land / total_land).clamp(0., 1.);
+    }
+    fn biodiversity_fn(&mut self, unused_land: f32, farm_land: f32) {
+        self.biodiversity = (unused_land / farm_land).clamp(0., 1.);
+    }
+
 }
 
 fn corr_ln(a: f32, b: f32, x: f32) -> f32 {

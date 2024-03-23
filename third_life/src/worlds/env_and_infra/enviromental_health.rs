@@ -1,6 +1,12 @@
 use bevy::prelude::*;
 
-use crate::{worlds::wealth::components::Treasury, SimulationState};
+use crate::{
+    worlds::{
+        config::WorldConfig, population::components::Population, wealth::components::Treasury,
+        WorldColony,
+    },
+    SimulationState,
+};
 
 use super::components::EnvironmentalHealth;
 
@@ -15,8 +21,22 @@ impl Plugin for EnvironmentalHealthPlugin {
     }
 }
 
-fn update_env_health_info(mut colonies: Query<(&Treasury, &mut EnvironmentalHealth)>) {
-    for (policy, mut infra) in colonies.iter_mut() {
-        infra.update(policy.total_sanitation_spending());
+fn update_env_health_info(
+    mut colonies: Query<(
+        &Treasury,
+        &mut EnvironmentalHealth,
+        &WorldConfig,
+        &Population,
+        &WorldColony,
+    )>,
+) {
+    for (policy, mut infra, config, pop, colony) in colonies.iter_mut() {
+        infra.update(
+            policy.total_sanitation_spending(),
+            config.population().space_per_person(),
+            colony.space_left(),
+            colony.human_space(),
+            pop.count,
+        );
     }
 }

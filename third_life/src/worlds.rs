@@ -82,23 +82,38 @@ pub(crate) fn init_colonies(
     }
 }
 
-#[derive(Component, PartialEq)]
+#[derive(Component, PartialEq, Default)]
 pub struct WorldColony {
     size: f32,
-    used: f32,
+    farm_space: f32,
+    human_space: f32,
 }
 
 impl WorldColony {
     fn new(starting_size: f32) -> Self {
         WorldColony {
             size: starting_size,
-            used: 0.0,
+            ..default()
         }
     }
 
-    fn space_left(&self) -> f32 {
-        self.size - self.used
+    pub fn space_left(&self) -> f32 {
+        self.size - (self.farm_space + self.human_space)
     }
+    pub fn take_up_human_space(&mut self, space: f32) {
+        self.human_space += space;
+    }
+    pub fn free_up_human_space(&mut self, space: f32) {
+        self.human_space -= space;
+    }
+    pub fn human_space(&self) -> f32 { self.human_space }
+    pub fn take_up_farm_space(&mut self, space: f32) {
+        self.farm_space += space;
+    }
+    pub fn free_up_farm_space(&mut self, space: f32) {
+        self.farm_space -= space;
+    }
+    pub fn farm_space(&self) -> f32 { self.farm_space }
 }
 
 #[derive(Component)]

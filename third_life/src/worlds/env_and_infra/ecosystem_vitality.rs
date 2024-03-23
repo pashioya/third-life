@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{worlds::wealth::components::Treasury, SimulationState};
+use crate::{
+    worlds::{wealth::components::Treasury, WorldColony},
+    SimulationState,
+};
 
 use super::components::EcosystemVitality;
 
@@ -15,8 +18,13 @@ impl Plugin for EcosystemVitalityPlugin {
     }
 }
 
-fn update_ecosystem_info(mut colonies: Query<(&Treasury, &mut EcosystemVitality)>) {
-    for (policy, mut infra) in colonies.iter_mut() {
-        infra.update(policy.total_sanitation_spending());
+fn update_ecosystem_info(mut colonies: Query<(&Treasury, &mut EcosystemVitality, &WorldColony)>) {
+    for (policy, mut infra, colony) in colonies.iter_mut() {
+        infra.update(
+            policy.total_sanitation_spending(),
+            colony.space_left(),
+            colony.farm_space(),
+            colony.human_space(),
+        );
     }
 }

@@ -128,8 +128,37 @@ fn init_postgres_db(
                         working_in_wheat INT4 not null,
                         working_in_beef INT4 not null,
                         working_not_in_farming INT4 not null,
-                        total_births INT4 not null
+                        farm_space FLOAT4 not null,
+                        human_space FLOAT4 not null,
+                        urbanization_index FLOAT4 not null,
+                        farming_mechanization FLOAT4 not null,
+                        health_index_score FLOAT4 not null,
+                        live_birth_mortality_rate FLOAT4 not null,
+                        global_hunger_index FLOAT4 not null,
+                        actual_infant_death_ratio FLOAT4 not null,
+                        indoor_air_pollution FLOAT4 not null,
+                        drinking_water FLOAT4 not null,
+                        urban_particulates FLOAT4 not null,
+                        air_quality_index FLOAT4 not null,
+                        productive_natural_resources FLOAT4 not null,
+                        biodiversity FLOAT4 not null,
+                        total_wealth FLOAT4 not null,
+                        spending_available FLOAT4 not null,
+                        citizen_payout FLOAT4 not null,
+                        civil_spending FLOAT4 not null,
+                        sanitation_spending FLOAT4 not null,
+                        social_spending FLOAT4 not null,
+                        environmental_spending FLOAT4 not null
                     );
+                "#)
+                    .execute(&pool)
+                    .await
+                    .unwrap();
+
+                let _ = sqlx::query(
+                    r#"
+                    create index if not exists uuid_colony_index 
+                        on public.simulation_records ( uuid, colony );
                 "#)
                     .execute(&pool)
                     .await

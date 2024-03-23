@@ -31,8 +31,6 @@ pub struct WorldConfig {
     population: Option<PopulationConfig>,
     #[def(GovernmentConfig::def_conf())]
     government: Option<GovernmentConfig>,
-    #[def(EnvironmentConfig::def_conf())]
-    environment: Option<EnvironmentConfig>,
     #[def(FoodConfig::def_conf())]
     food: Option<FoodConfig>,
     sprite: SpriteConfig,
@@ -44,6 +42,8 @@ pub struct PopulationConfig {
     /// Starting number of Peple. Any Real number
     #[def(1000)]
     population_size: Option<u32>,
+    #[def(0.001)]
+    space_per_person: Option<f32>,
     ///age of adult and retirement
     #[def(18)]
     age_of_adult: Option<usize>,
@@ -114,18 +114,6 @@ pub struct GovernmentConfig {
     #[def(25)]
     environmental_spending: Option<usize>,
 }
-
-/// General factors of the environment of the world
-#[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
-pub struct EnvironmentConfig {
-    #[def(0.5)]
-    urbanization: Option<f32>,
-    #[def(1.)]
-    env_health: Option<f32>,
-    #[def(1.)]
-    ecosystem_vitylity: Option<f32>,
-}
-
 
 #[derive(Deserialize, Serialize, Debug, Clone, Resource, Default, Config)]
 pub struct FoodConfig {

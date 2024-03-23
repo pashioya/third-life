@@ -29,10 +29,10 @@
             },
             "government": {
                 "citizen_payout": 0.5,
-                "civil_spending": 25,
-                "sanitation_spending": 25,
-                "social_spending": 25,
-                "environmental_spending": 25
+                "civil_spending": 100,
+                "sanitation_spending": 0,
+                "social_spending": 0,
+                "environmental_spending": 0
             },
             "environment": {
                 "urbanization": 0.75,
@@ -85,10 +85,10 @@
             },
             "government": {
                 "citizen_payout": 0.5,
-                "civil_spending": 25,
-                "sanitation_spending": 25,
-                "social_spending": 25,
-                "environmental_spending": 25
+                "civil_spending": 0,
+                "sanitation_spending": 34,
+                "social_spending": 33,
+                "environmental_spending": 33
             },
             "environment": {
                 "urbanization": 0.75,

@@ -40,7 +40,7 @@ impl Plugin for PopulationPlugin {
         )
         .add_systems(
             Update,
-            (update_population, check_birthdays, come_of_age, retirement)
+            (update_population, check_birthdays, come_of_age, retirement, take_up_space)
                 .run_if(in_state(SimulationState::Running)),
         )
         .add_plugins((
@@ -248,5 +248,23 @@ pub fn retirement(
                 e.try_insert(Retiree);
             });
         }
+    }
+}
+
+pub fn take_up_space(
+    mut colonies: Query<(Entity, &mut WorldColony, &WorldConfig)>,
+    mut died: EventReader<CitizenDied>,
+    mut born: EventReader<CitizenCreated>,
+) {
+    let mut colonies = colonies.iter_mut().map(|e|(e.0, (e.1, e.2))).collect::<HashMap<_, _>>();
+    for CitizenDied { colony, .. } in died.read() {
+        colonies.get_mut(colony).map(|(colony, config)| {
+            colony.free_up_human_space(config.population().space_per_person());
+        });
+    }
+    for CitizenCreated { colony, .. } in born.read() {
+        colonies.get_mut(colony).map(|(colony, config)| {
+            colony.take_up_human_space(config.population().space_per_person());
+        });
     }
 }
