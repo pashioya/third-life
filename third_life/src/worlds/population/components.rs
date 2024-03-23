@@ -91,7 +91,7 @@ impl CitizenBuilder {
         game_date: NaiveDate, colony: Entity, birthday: NaiveDate,
         pop_config: PopulationConfig
     ) -> Self {
-        let age = game_date.years_since(birthday).unwrap() as usize;
+        let age = game_date.years_since(birthday).unwrap_or(0) as usize;
         let mut builder = Self { 
             bundle: Some(CitizenBundle::new(age, colony, birthday, pop_config.clone())), 
             age: Some(age), youngling: None, growing: None, retiree: None,

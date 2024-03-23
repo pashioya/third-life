@@ -353,7 +353,7 @@ pub fn check_for_more_cow_farms(
             if meat_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
                 let cow_farm_size = world_config.food().cow_farm_size();
                 if world_colony.space_left() > cow_farm_size {
-                    world_colony.used += cow_farm_size;
+                    world_colony.take_up_farm_space(cow_farm_size);
                     let cow_farm_entity = commands
                         .spawn((
                             CowFarm {

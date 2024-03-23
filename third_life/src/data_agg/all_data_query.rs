@@ -6,15 +6,15 @@ use bevy_async_task::AsyncTaskPool;
 use crate::{
     time::DateChanged,
     worlds::{
-        food::{
+        env_and_infra::components::{
+            CivilInfrastructure, EcosystemVitality, EnvironmentalHealth, SanitationInfrastructure,
+        }, food::{
             components::{CarbResource, MeatResource, ResourceOf},
-            events::{CarbConsumedEvent, CarbCreated, MeatConsumedEvent, MeatCreated}
-        },
-        population::{
+            events::{CarbConsumedEvent, CarbCreated, MeatConsumedEvent, MeatCreated},
+        }, population::{
             components::Population,
             events::{CitizenCreated, CitizenDied, DeathReason},
-        },
-        WorldColony,
+        }, wealth::components::Treasury, WorldColony
     },
     SimulationState,
 };
@@ -42,7 +42,18 @@ pub fn record_daily_data(
     uuid: Res<SimulationUuid>,
     db: Res<PostgresDB>,
     mut task_pool: AsyncTaskPool<()>,
-    colonies: Query<Entity, With<WorldColony>>,
+    colonies: Query<
+        (
+            Entity,
+            &WorldColony,
+            &CivilInfrastructure,
+            &SanitationInfrastructure,
+            &EnvironmentalHealth,
+            &EcosystemVitality,
+            &Treasury
+        ),
+        With<WorldColony>,
+    >,
     mut day_changed: EventReader<DateChanged>,
     meat_resources: Query<(&MeatResource, &ResourceOf)>,
     carb_resources: Query<(&CarbResource, &ResourceOf)>,
@@ -55,7 +66,59 @@ pub fn record_daily_data(
 
     let mut records = colonies
         .into_iter()
-        .map(|e| (e, ColonyRecord::new(uuid.0.clone(), date, e)))
+        .map(
+            |(
+                e,
+                colony,
+                CivilInfrastructure {
+                    urbanization_index,
+                    farming_mechanization,
+                },
+                SanitationInfrastructure {
+                    health_index_score,
+                    live_birth_mortality_rate,
+                    global_hunger_index,
+                    actual_infant_death_ratio,
+                },
+                EnvironmentalHealth {
+                    indoor_air_pollution,
+                    drinking_water,
+                    urban_particulates,
+                },
+                EcosystemVitality {
+                    air_quality_index,
+                    productive_natural_resources,
+                    biodiversity,
+                },
+                treasury
+            )| {
+                (e, {
+                    let mut record = ColonyRecord::new(uuid.0.clone(), date, e);
+                    record.farm_space = colony.farm_space();
+                    record.human_space = colony.human_space();
+                    record.urbanization_index = *urbanization_index;
+                    record.farming_mechanization = *farming_mechanization;
+                    record.health_index_score = *health_index_score;
+                    record.live_birth_mortality_rate = *live_birth_mortality_rate;
+                    record.global_hunger_index = *global_hunger_index;
+                    record.actual_infant_death_ratio = *actual_infant_death_ratio;
+                    record.indoor_air_pollution = *indoor_air_pollution;
+                    record.drinking_water = *drinking_water;
+                    record.urban_particulates = *urban_particulates;
+                    record.air_quality_index = *air_quality_index;
+                    record.productive_natural_resources = *productive_natural_resources;
+                    record.biodiversity = *biodiversity;
+                    record.total_wealth = treasury.total_wealth;
+                    record.spending_available = treasury.spending_available;
+                    record.citizen_payout = treasury.citizen_payout;
+                    record.civil_spending = treasury.total_civil_spending();
+                    record.sanitation_spending = treasury.total_sanitation_spending();
+                    record.social_spending = treasury.total_social_spending();
+                    record.environmental_spending = treasury.total_environmental_spending();
+                    record
+                })
+            },
+        )
         .collect::<HashMap<_, _>>();
 
     meat_resources
@@ -82,6 +145,12 @@ pub fn record_daily_data(
         record.younglings = pop.younglings as i32;
         record.retirees = pop.retirees as i32;
         record.average_children_per_mother = pop.average_children_per_mother as f32;
+        record.num_couples = pop.num_couples as i32;
+        record.males = pop.males as i32;
+        record.females = pop.females as i32;
+        record.working_in_wheat = pop.working_in_wheat as i32;
+        record.working_in_beef = pop.working_in_beef as i32;
+        record.working_not_in_farming = pop.working_not_in_farming as i32;
     });
 
     event_container.iter().for_each(|(colony, container)| {
@@ -139,7 +208,27 @@ pub fn record_daily_data(
                 working_in_wheat,
                 working_in_beef,
                 working_not_in_farming,
-                total_births,
+                farm_space,
+                human_space,
+                urbanization_index,
+                farming_mechanization,
+                health_index_score,
+                live_birth_mortality_rate,
+                global_hunger_index,
+                actual_infant_death_ratio,
+                indoor_air_pollution,
+                drinking_water,
+                urban_particulates,
+                air_quality_index,
+                productive_natural_resources,
+                biodiversity,
+                total_wealth,
+                spending_available,
+                citizen_payout,
+                civil_spending,
+                sanitation_spending,
+                social_spending,
+                environmental_spending,
             },
         ) in records
         {
@@ -152,11 +241,18 @@ pub fn record_daily_data(
                     meat_consumed, carb_resources, carb_quality, carb_consumed,
                     meat_produced, carb_produced, num_couples, males, females,
                     working_in_wheat, working_in_beef, working_not_in_farming,
-                    total_births
+                    farm_space, human_space, urbanization_index, farming_mechanization,
+                    health_index_score, live_birth_mortality_rate, global_hunger_index,
+                    actual_infant_death_ratio, indoor_air_pollution, drinking_water,
+                    urban_particulates, air_quality_index, productive_natural_resources,
+                    biodiversity, total_wealth, spending_available, citizen_payout,
+                    civil_spending, sanitation_spending, social_spending,
+                    environmental_spending
                 ) values (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
                     $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26,
-                    $27, $28
+                    $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, 
+                    $39, $40, $41, $42, $43, $44, $45, $46, $47, $48
                 );
                 "#,
             )
@@ -187,7 +283,27 @@ pub fn record_daily_data(
             .bind(working_in_wheat)
             .bind(working_in_beef)
             .bind(working_not_in_farming)
-            .bind(total_births)
+            .bind(farm_space)
+            .bind(human_space)
+            .bind(urbanization_index)
+            .bind(farming_mechanization)
+            .bind(health_index_score)
+            .bind(live_birth_mortality_rate)
+            .bind(global_hunger_index)
+            .bind(actual_infant_death_ratio)
+            .bind(indoor_air_pollution)
+            .bind(drinking_water)
+            .bind(urban_particulates)
+            .bind(air_quality_index)
+            .bind(productive_natural_resources)
+            .bind(biodiversity)
+            .bind(total_wealth)
+            .bind(spending_available)
+            .bind(citizen_payout)
+            .bind(civil_spending)
+            .bind(sanitation_spending)
+            .bind(social_spending)
+            .bind(environmental_spending)
             .execute(&*pool)
             .await
             .unwrap();

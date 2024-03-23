@@ -4,6 +4,7 @@ use crate::{
     worlds::{
         food::components::{CowFarmer, WheatFarmer},
         population::components::{CitizenOf, Pregnancy, Retiree, Youngling},
+        wealth::components::Treasury,
     },
     SimulationState,
 };
@@ -22,7 +23,7 @@ impl Plugin for CivilInfrastructurePlugin {
 }
 
 fn update_civil_infra_info(
-    mut colonies: Query<(Entity, &mut CivilInfrastructure)>,
+    mut colonies: Query<(Entity, &Treasury, &mut CivilInfrastructure)>,
     farmers: Query<&CitizenOf, (With<CowFarmer>, With<WheatFarmer>)>,
     working_pop: Query<
         &CitizenOf,
@@ -35,7 +36,7 @@ fn update_civil_infra_info(
         ),
     >,
 ) {
-    for (entity, mut infra) in colonies.iter_mut() {
+    for (entity, treasury, mut infra) in colonies.iter_mut() {
         let free_citizens = working_pop
             .iter()
             .filter(|citizen_of| citizen_of.colony == entity);
@@ -43,6 +44,10 @@ fn update_civil_infra_info(
             .iter()
             .filter(|citizen_of| citizen_of.colony == entity);
 
-        infra.update(free_citizens.count(), farmers.count())
+        infra.update(
+            treasury.total_civil_spending(),
+            free_citizens.count(),
+            farmers.count(),
+        )
     }
 }

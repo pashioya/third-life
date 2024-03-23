@@ -7,15 +7,16 @@ pub struct WorldUi;
 #[derive(Component)]
 pub struct WorldUiName(pub String);
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct WorldUiSize {
     pub size: f32,
-    pub used: f32,
+    pub farm_space: f32,
+    pub human_space: f32,
 }
 
 impl WorldUiSize{
     fn new(size: f32) -> Self {
-        WorldUiSize{ size, used: 0.0}
+        WorldUiSize{ size, ..default() }
     }
 }
 
@@ -122,6 +123,10 @@ pub struct WorldUiBundle {
     pub prod: ResourceProduction,
     pub cons: ResourceConsumption,
     pub stor: ResourceStorage,
+    pub infra: InfrastructureUi,
+    pub env: EnvironmentUi,
+    pub eco: EcosystemUi,
+    pub wealth: WealthUi,
 }
 
 impl WorldUiBundle {
@@ -137,6 +142,45 @@ impl WorldUiBundle {
             prod: ResourceProduction::default(),
             cons: ResourceConsumption::default(),
             stor: ResourceStorage::new(),
+            infra: InfrastructureUi::default(),
+            env: EnvironmentUi::default(),
+            eco: EcosystemUi::default(),
+            wealth: WealthUi::default(),
         }
     }
+}
+
+#[derive(Component, Default)]
+pub struct InfrastructureUi {
+    pub urbanization_index: f32,
+    pub farming_mechanization: f32,
+    pub health_index_score: f32,
+    pub live_birth_mortality_rate: f32,
+    pub global_hunger_index: f32,
+    pub actual_infant_death_ratio: f32,
+}
+
+#[derive(Component, Default)]
+pub struct EnvironmentUi {
+    pub indoor_air_pollution: f32,
+    pub drinking_water: f32,
+    pub urban_particulates: f32,
+}
+
+#[derive(Component, Default)]
+pub struct EcosystemUi {
+    pub air_quality_index: f32,
+    pub productive_natural_resources: f32,
+    pub biodiversity: f32,
+}
+
+#[derive(Component, Default)]
+pub struct WealthUi {
+    pub total_wealth: f32,
+    pub spending_available: f32,
+    pub citizen_payout: f32,
+    pub civil_spending: f32,
+    pub sanitation_spending: f32,
+    pub social_spending: f32,
+    pub environmental_spending: f32,
 }

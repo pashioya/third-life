@@ -69,7 +69,7 @@ fn init_food(
         let wheat_farm_size = world_config.food().wheat_farm_size();
         for _ in 0..world_config.food().wheat_farms() {
             if world_colony.space_left() > wheat_farm_size {
-                world_colony.used += wheat_farm_size;
+                world_colony.take_up_farm_space(wheat_farm_size);
                 wheat_farms.push((
                     WheatFarm {
                         size: wheat_farm_size,
@@ -86,7 +86,7 @@ fn init_food(
         let cow_farm_size = world_config.food().cow_farm_size();
         for _ in 0..world_config.food().cow_farms() {
             if world_colony.space_left() > cow_farm_size {
-                world_colony.used += cow_farm_size;
+                world_colony.take_up_farm_space(cow_farm_size);
                 let cow_farm_entity = commands
                     .spawn((
                         CowFarm { size: cow_farm_size, farmers_wanted: 4, hours_worked: 0., },

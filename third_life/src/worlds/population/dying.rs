@@ -1,7 +1,7 @@
 use super::{components::*, events::*};
 use crate::{
     time::{DateChanged, GameDate},
-    worlds::{config::WorldConfig, env_and_infra::components::SanitationInfrastructure},
+    worlds::{config::WorldConfig, env_and_infra::components::{EcosystemVitality, EnvironmentalHealth, SanitationInfrastructure}},
     SimulationState,
 };
 use bevy::prelude::*;
@@ -26,7 +26,7 @@ impl Plugin for DeathsPlugin {
 
 pub fn old_age_death(
     mut date_changed: EventReader<DateChanged>,
-    worlds: Query<(Entity, &WorldConfig)>,
+    worlds: Query<(Entity, &WorldConfig, &EnvironmentalHealth, &EcosystemVitality)>,
     mut commands: Commands,
     citizens: Query<(Entity, &CitizenOf, &Citizen)>,
     game_date: Res<GameDate>,
@@ -34,8 +34,8 @@ pub fn old_age_death(
 ) {
     let epi_map = worlds
         .iter()
-        .map(|(e, w)| {
-            let val = w.environment().env_health() + w.environment().ecosystem_vitylity() / 2.;
+        .map(|(e, w, env, eco)| {
+            let val = (env.total_avg_val() + eco.total_avg_val()) / 2.;
             let spread = w.population().life_expectancy_spread();
             (e, (val * 100., spread))
         })

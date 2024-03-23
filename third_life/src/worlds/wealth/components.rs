@@ -45,7 +45,7 @@ impl Treasury {
         let population_count = population_count as f32;
         self.old_wealth = self.total_wealth;
         self.total_wealth = working as f32;
-        self.spending_available = self.total_wealth - (population_count * self.citizen_payout);
+        self.spending_available = (population_count * self.citizen_payout) / self.total_wealth * 100.;
     }
     pub fn total_civil_spending(&self) -> f32 {
         Self::to_01(self.policy.civil_spending) * self.spending_available
@@ -75,4 +75,3 @@ pub struct SpendingPolicy {
     environmental_spending: usize,
 }
 
-impl SpendingPolicy {}
