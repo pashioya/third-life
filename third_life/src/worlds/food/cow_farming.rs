@@ -10,7 +10,9 @@ use crate::{
     worlds::{
         config::WorldConfig,
         env_and_infra::components::{weighted_range, CivilInfrastructure},
-        population::components::{CitizenOf, Employed, MeatConsumed, Retiree, Youngling},
+        population::components::{
+            CitizenOf, Employed, MeatConsumed, Pregnancy, Retiree, Youngling,
+        },
         WorldColony,
     },
 };
@@ -114,21 +116,21 @@ pub fn check_cow_farm_workers(
     farmers: Query<(Entity, &CowFarmer, &CitizenOf)>,
 ) {
     let cow_meat_weight = 250.;
-    let cows_count_map = cows.iter().fold(
+    let cows_count_map =
+        cows.iter()
+            .fold(HashMap::new(), |mut acc: HashMap<Entity, usize>, cow_of| {
+                *acc.entry(cow_of.cow_farm).or_insert(0) += 1;
+                acc
+            });
+    let mut farmers_map = farmers.iter().fold(
         HashMap::new(),
-        | mut acc: HashMap<Entity, usize>, cow_of | {
-            *acc.entry(cow_of.cow_farm).or_insert(0) += 1;
+        |mut acc: HashMap<Entity, Vec<Entity>>, (citizen, cow_farmer, _)| {
+            acc.entry(cow_farmer.farm)
+                .or_insert(Vec::new())
+                .push(citizen);
             acc
         },
     );
-    let mut farmers_map = farmers.iter().fold(
-            HashMap::new(),
-            |mut acc: HashMap<Entity, Vec<Entity>>, (citizen, cow_farmer, _)| {
-                acc.entry(cow_farmer.farm).or_insert(Vec::new()).push(citizen);
-                acc
-                
-            },
-        );
     for _ in day_changed_event_reader.read() {
         let mut farms_map = cow_farms.iter().fold(
             HashMap::new(),
@@ -162,23 +164,37 @@ pub fn check_cow_farm_workers(
                 );
             for (farm_entity, farmer_count) in farms {
                 let (_, mut farm, _) = cow_farms.get_mut(farm_entity).unwrap();
-                if farm.hours_worked > *cows_count_map.get(&farm_entity).unwrap() as f32 * hours_needed_to_butcher_cow * 1.2 {
+                if farmer_count < 1 {
+                    farm.hours_worked = farm.hours_worked / 2.;
+                }
+                if farm.hours_worked
+                    > *cows_count_map.get(&farm_entity).unwrap() as f32
+                        * hours_needed_to_butcher_cow
+                        * 1.2
+                {
                     if farm.farmers_wanted > 1 {
                         farm.farmers_wanted -= 1;
                     }
-                } else if farm.hours_worked < *cows_count_map.get(&farm_entity).unwrap() as f32 * hours_needed_to_butcher_cow * 0.9  {
+                } else if farm.hours_worked
+                    < *cows_count_map.get(&farm_entity).unwrap() as f32
+                        * hours_needed_to_butcher_cow
+                        * 0.9
+                {
                     if farm.farmers_wanted < 15 {
                         farm.farmers_wanted += 1;
                     }
                 }
                 if farmer_count < farm.farmers_wanted {
                     for _ in 0..(farm.farmers_wanted - farmer_count) {
-                        event_writer.send(CowFarmNeedsWorker { colony, farm: farm_entity });
+                        event_writer.send(CowFarmNeedsWorker {
+                            colony,
+                            farm: farm_entity,
+                        });
                     }
                 } else if farmer_count > farm.farmers_wanted {
-                    for _ in 0..farmer_count-farm.farmers_wanted {
+                    for _ in 0..farmer_count - farm.farmers_wanted {
                         let farmer = farmers_map.get_mut(&farm_entity).unwrap().pop().unwrap();
-                        commands.get_entity(farmer).map(| mut f | {
+                        commands.get_entity(farmer).map(|mut f| {
                             f.remove::<CowFarmer>();
                             f.remove::<Employed>();
                         });
@@ -194,7 +210,12 @@ pub fn get_cow_farm_workers(
     mut event_reader: EventReader<CowFarmNeedsWorker>,
     free_citizens: Query<
         (Entity, &CitizenOf),
-        (Without<Employed>, Without<Youngling>, Without<Retiree>),
+        (
+            Without<Employed>,
+            Without<Pregnancy>,
+            Without<Youngling>,
+            Without<Retiree>,
+        ),
     >,
 ) {
     for needs_worker_event in event_reader.read() {
@@ -231,7 +252,8 @@ pub fn work_cow_farm(
 
         for (farm_entity, farmer_count) in farmers_map {
             let (_, mut cow_farm, CowFarmOf { colony }) = cow_farms.get_mut(farm_entity).unwrap();
-            let available_work_hours = farmer_count as f32 * colonies_config.get(*colony).unwrap().1.work_day_length();
+            let available_work_hours =
+                farmer_count as f32 * colonies_config.get(*colony).unwrap().1.work_day_length();
             cow_farm.hours_worked += available_work_hours;
         }
     }
@@ -286,23 +308,19 @@ pub fn butcher_cows(
             let mut harvested_meat = 0.0;
             for (farm_entity, cows) in farms.iter_mut() {
                 let (_, mut farm, _) = cow_farms.get_mut(*farm_entity).unwrap();
-                let hours_needed_to_butcher_cow = cow_meat_weight
-                    * weighted_range(
-                        1.3,
-                        0.055,
-                        farm_mech_value
-                );
+                let hours_needed_to_butcher_cow =
+                    cow_meat_weight * weighted_range(1.3, 0.055, farm_mech_value);
 
                 if farm.hours_worked > hours_needed_to_butcher_cow {
                     let mut too_young = 0;
                     let mut harvest_count =
                         (farm.hours_worked / hours_needed_to_butcher_cow).floor() as usize;
                     while let Some((cow_entity, cow)) = cows.pop() {
-                        if harvest_count <= 0  || cows.len() + too_young <= 47 {
+                        if harvest_count <= 0 || cows.len() + too_young <= 47 {
                             break;
                         }
                         if get_age_in_months(day.date, cow.birthday) > 18 {
-                            commands.get_entity(cow_entity).map(|mut e| { e.despawn()});
+                            commands.get_entity(cow_entity).map(|mut e| e.despawn());
                             harvest_count -= 1;
                             farm.hours_worked -= hours_needed_to_butcher_cow;
                             harvested_meat += cow_meat_weight;

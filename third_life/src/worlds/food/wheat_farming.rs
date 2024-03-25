@@ -6,7 +6,9 @@ use crate::{
     worlds::{
         config::WorldConfig,
         env_and_infra::components::{weighted_range, CivilInfrastructure},
-        population::components::{CarbConsumed, CitizenOf, Employed},
+        population::components::{
+            CarbConsumed, CitizenOf, Employed, Pregnancy, Retiree, Youngling,
+        },
         WorldColony,
     },
 };
@@ -154,7 +156,15 @@ pub fn check_farm_workers(
 pub fn get_farm_workers(
     mut commands: Commands,
     mut event_reader: EventReader<WheatFarmNeedsWorker>,
-    free_citizens: Query<(Entity, &CitizenOf), Without<Employed>>,
+    free_citizens: Query<
+        (Entity, &CitizenOf),
+        (
+            Without<Employed>,
+            Without<Pregnancy>,
+            Without<Youngling>,
+            Without<Retiree>,
+        ),
+    >,
 ) {
     for needs_worker_event in event_reader.read() {
         for (citizen, citizen_of) in free_citizens.iter() {
