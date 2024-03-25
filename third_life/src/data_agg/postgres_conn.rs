@@ -43,7 +43,7 @@ fn init_postgres_db(
     simulation_uuid: Res<SimulationUuid>,
     loading_databases: Res<LoadingDatabases>,
 ) {
-    let clear = false;
+    let clear = true;
     let general_config = general_config.deref().clone();
     let worlds_config = worlds_config.deref().clone();
     let simulation_uuid = simulation_uuid.deref().deref().clone();
@@ -148,7 +148,9 @@ fn init_postgres_db(
                         civil_spending FLOAT4 not null,
                         sanitation_spending FLOAT4 not null,
                         social_spending FLOAT4 not null,
-                        environmental_spending FLOAT4 not null
+                        environmental_spending FLOAT4 not null,
+                        meat_farms_created INT4 not null,
+                        carb_farms_created INT4 not null
                     );
                 "#)
                     .execute(&pool)

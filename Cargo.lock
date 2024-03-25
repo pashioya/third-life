@@ -529,19 +529,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy-async-task"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d8812dbcaedbad9fb68230e2379dc00f165786d94123787a0b816bc8d93a198"
-dependencies = [
- "async-compat",
- "async-std",
- "bevy",
- "cfg-if",
- "tokio",
-]
-
-[[package]]
 name = "bevy_a11y"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -630,6 +617,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.53",
+]
+
+[[package]]
+name = "bevy_async_task"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1b6369f66a75408f203928de9bfb8bd0ee6647c59e14cb932c87803ff233f11"
+dependencies = [
+ "async-compat",
+ "async-std",
+ "bevy",
+ "cfg-if",
+ "tokio",
 ]
 
 [[package]]
@@ -4531,7 +4531,7 @@ name = "third-life"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy-async-task",
+ "bevy_async_task",
  "bevy_egui",
  "chrono",
  "egui_plot",

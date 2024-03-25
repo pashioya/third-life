@@ -41,7 +41,7 @@ fn stop_growing(
     citizens: Query<(Entity, &Citizen), With<StillGrowing>>,
 ) {
     for (entity, citizen) in citizens.iter() {
-        let age = game_date.years_since(citizen.birthday).unwrap();
+        let age = game_date.years_since(citizen.birthday).unwrap_or(0);
         if age as usize > STOP_GROWING_AGE {
             commands.get_entity(entity).map(|mut e| {
                 e.remove::<StillGrowing>();

@@ -18,8 +18,7 @@ use crate::{
 };
 
 use super::{
-    tracking::MeatProduced, Cow, CowFarm, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf,
-    IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf,
+    tracking::MeatProduced, Cow, CowFarm, CowFarmCreated, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf
 };
 
 pub fn mark_breeders(
@@ -356,6 +355,7 @@ pub fn check_for_more_cow_farms(
     mut year_changed_rader: EventReader<YearChanged>,
     meat_resources: Query<(&ResourceOf, &MeatResource)>,
     game_date: Res<GameDate>,
+    mut created_events: EventWriter<CowFarmCreated>,
 ) {
     let resource_map = meat_resources
         .iter()
@@ -372,6 +372,7 @@ pub fn check_for_more_cow_farms(
                 let cow_farm_size = world_config.food().cow_farm_size();
                 if world_colony.space_left() > cow_farm_size {
                     world_colony.take_up_farm_space(cow_farm_size);
+                    created_events.send(CowFarmCreated { colony });
                     let cow_farm_entity = commands
                         .spawn((
                             CowFarm {
