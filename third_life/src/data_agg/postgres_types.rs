@@ -54,6 +54,8 @@ pub struct ColonyRecord {
     pub sanitation_spending: f32,
     pub social_spending: f32,
     pub environmental_spending: f32,
+    pub meat_farms_created: i32,
+    pub carb_farms_created: i32,
 }
 
 impl ColonyRecord {
@@ -93,4 +95,6 @@ pub struct EventsContainer {
     pub meat_produced: f32,
     pub carb_consumed: f32,
     pub carb_produced: f32,
+    pub meat_farms_created: i32,
+    pub carb_farms_created: i32,
 }

@@ -12,8 +12,7 @@ use crate::{
 };
 
 use super::{
-    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmNeedsWorker,
-    WheatFarmOf, WheatFarmer,
+    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmCreated, WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer
 };
 
 pub fn season_check_wheat(
@@ -43,6 +42,7 @@ pub fn check_wheat_farms_counts(
     )>,
     carb_resources: Query<(&ResourceOf, &CarbResource)>,
     mut year_changed_reader: EventReader<YearChanged>,
+    mut created_events: EventWriter<WheatFarmCreated>,
 ) {
     let resource_map = carb_resources
         .iter()
@@ -78,6 +78,7 @@ pub fn check_wheat_farms_counts(
                 let wheat_farm_size = world_config.food().wheat_farm_size();
                 if world_colony.space_left() > wheat_farm_size {
                     world_colony.take_up_farm_space(wheat_farm_size);
+                    created_events.send(WheatFarmCreated { colony });
                     commands.spawn((
                         WheatFarm {
                             size: wheat_farm_size,

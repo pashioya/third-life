@@ -10,7 +10,7 @@ use crate::{
             CivilInfrastructure, EcosystemVitality, EnvironmentalHealth, SanitationInfrastructure,
         }, food::{
             components::{CarbResource, MeatResource, ResourceOf},
-            events::{CarbConsumedEvent, CarbCreated, MeatConsumedEvent, MeatCreated},
+            events::{CarbConsumedEvent, CarbCreated, CowFarmCreated, MeatConsumedEvent, MeatCreated, WheatFarmCreated},
         }, population::{
             components::Population,
             events::{CitizenCreated, CitizenDied, DeathReason},
@@ -163,6 +163,8 @@ pub fn record_daily_data(
             carb_consumed,
             meat_produced,
             carb_produced,
+            meat_farms_created,
+            carb_farms_created,
         } = container;
         let record = records.get_mut(colony).unwrap();
         record.infant_deaths = *infant_deaths;
@@ -173,6 +175,8 @@ pub fn record_daily_data(
         record.carb_consumed = *carb_consumed;
         record.meat_produced = *meat_produced;
         record.carb_produced = *carb_produced;
+        record.meat_farms_created = *meat_farms_created;
+        record.carb_farms_created = *carb_farms_created;
     });
     event_container.clear();
 
@@ -229,6 +233,8 @@ pub fn record_daily_data(
                 sanitation_spending,
                 social_spending,
                 environmental_spending,
+                meat_farms_created,
+                carb_farms_created,
             },
         ) in records
         {
@@ -247,12 +253,12 @@ pub fn record_daily_data(
                     urban_particulates, air_quality_index, productive_natural_resources,
                     biodiversity, total_wealth, spending_available, citizen_payout,
                     civil_spending, sanitation_spending, social_spending,
-                    environmental_spending
+                    environmental_spending, meat_farms_created, carb_farms_created
                 ) values (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
                     $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26,
                     $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, 
-                    $39, $40, $41, $42, $43, $44, $45, $46, $47, $48
+                    $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50
                 );
                 "#,
             )
@@ -304,6 +310,8 @@ pub fn record_daily_data(
             .bind(sanitation_spending)
             .bind(social_spending)
             .bind(environmental_spending)
+            .bind(meat_farms_created)
+            .bind(carb_farms_created)
             .execute(&*pool)
             .await
             .unwrap();
@@ -319,6 +327,8 @@ pub fn event_sourcer(
     mut carb_produced: EventReader<CarbCreated>,
     mut births: EventReader<CitizenCreated>,
     mut deaths: EventReader<CitizenDied>,
+    mut meat_farms: EventReader<CowFarmCreated>,
+    mut carb_farms: EventReader<WheatFarmCreated>,
 ) {
     meat_consumed
         .read()
@@ -373,5 +383,22 @@ pub fn event_sourcer(
                 DeathReason::Starvation => map.starvation_deaths += 1,
                 DeathReason::OldAge => map.old_age_death += 1,
             };
+        });
+
+    meat_farms
+        .read()
+        .for_each(|CowFarmCreated { colony }| {
+            event_container
+                .entry(*colony)
+                .or_insert(EventsContainer::default())
+                .meat_farms_created += 1;
+        });
+    carb_farms
+        .read()
+        .for_each(|WheatFarmCreated { colony }| {
+            event_container
+                .entry(*colony)
+                .or_insert(EventsContainer::default())
+                .meat_farms_created += 1;
         });
 }

@@ -193,7 +193,11 @@ pub fn update_population(
         population.num_couples = spouses.get(&colony).map(|n| n/2).unwrap_or(0);
         population.working_in_wheat = *wheat_farmer.get(&colony).unwrap_or(&0);
         population.working_in_beef = *beef_farmer.get(&colony).unwrap_or(&0);
-        population.working_not_in_farming = population.working_pop - (population.working_in_wheat + population.working_in_beef);
+        if population.working_pop >= (population.working_in_wheat + population.working_in_beef) {
+            population.working_not_in_farming = population.working_pop - (population.working_in_wheat + population.working_in_beef);
+        } else {
+            population.working_not_in_farming = 0;
+        }
     }
 }
 
