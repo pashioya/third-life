@@ -1,8 +1,9 @@
 use bevy::{prelude::*, utils::hashbrown::HashMap};
-use chrono::Datelike;
+use chrono::{Datelike, NaiveDate};
+use rand_distr::num_traits::Float;
 
 use crate::{
-    time::{DateChanged, GameDate, YearChanged},
+    time::{DateChanged, YearChanged},
     worlds::{
         config::WorldConfig,
         env_and_infra::components::{weighted_range, CivilInfrastructure},
@@ -14,18 +15,31 @@ use crate::{
 };
 
 use super::{
-    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmCreated, WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer
+    tracking::CarbProduced, CarbCreated, CarbResource, ResourceOf, WheatFarm, WheatFarmCreated,
+    WheatFarmNeedsWorker, WheatFarmOf, WheatFarmer,
 };
 
 pub fn season_check_wheat(
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut wheat_farms: Query<&mut WheatFarm>,
-    game_date: Res<GameDate>,
 ) {
-    for _ in day_changed_event_reader.read() {
-        if game_date.date.month() == 6 && game_date.date.day() == 1 {
+    for DateChanged { date } in day_changed_event_reader.read() {
+        if date.month() == 6 && date.day() == 1 {
             for mut wheat_farm in wheat_farms.iter_mut() {
                 wheat_farm.harvested = 0.0;
+            }
+        }
+    }
+}
+
+pub fn season_end_check_wheat(
+    mut day_changed_event_reader: EventReader<DateChanged>,
+    mut wheat_farms: Query<&mut WheatFarm>,
+) {
+    for DateChanged { date } in day_changed_event_reader.read() {
+        if date.month() == 10 && date.day() == 27 {
+            for mut wheat_farm in wheat_farms.iter_mut() {
+                wheat_farm.harvested = wheat_farm.size;
             }
         }
     }
@@ -77,8 +91,22 @@ pub fn check_wheat_farms_counts(
         {
             let min_surplus = world_config.food().min_surplus_multiplier();
             if carb_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
+                let mut new_farm_count =
+                    (carb_consumed.amount / carb_produced.amount).floor() as usize;
+                if new_farm_count == 0 {
+                    new_farm_count += 1;
+                }
+                if resource_map.get(&colony).unwrap().get_kgs() == 0.0 {
+                    new_farm_count += 2;
+                }
+                warn!("Need new Wheat Farms");
+                warn!(
+                    "Consumption|production {:?}|{:?}",
+                    carb_consumed.amount, carb_produced.amount
+                );
+                warn!("New Farm Count: {:?}", new_farm_count);
                 let wheat_farm_size = world_config.food().wheat_farm_size();
-                if world_colony.space_left() > wheat_farm_size {
+                while world_colony.space_left() > wheat_farm_size && new_farm_count > 0 {
                     world_colony.take_up_farm_space(wheat_farm_size);
                     created_events.send(WheatFarmCreated { colony });
                     commands.spawn((
@@ -88,6 +116,7 @@ pub fn check_wheat_farms_counts(
                         },
                         WheatFarmOf { colony },
                     ));
+                    new_farm_count -= 1;
                 }
             }
 
@@ -117,15 +146,26 @@ pub fn check_wheat_farms_counts(
     }
 }
 pub fn check_farm_workers(
+    mut commands: Commands,
     mut day_changed_event_reader: EventReader<DateChanged>,
     mut event_writer: EventWriter<WheatFarmNeedsWorker>,
-    wheat_farms: Query<(Entity, &WheatFarmOf), With<WheatFarm>>,
-    farmers: Query<(&WheatFarmer, &CitizenOf)>,
+    wheat_farms: Query<(Entity, &WheatFarmOf, &WheatFarm)>,
+    farmers: Query<(Entity, &WheatFarmer, &CitizenOf)>,
+    colonies: Query<(Entity, &CivilInfrastructure, &WorldConfig)>,
 ) {
-    for _ in day_changed_event_reader.read() {
+    let mut farmers_map = farmers.iter().fold(
+        HashMap::new(),
+        |mut acc: HashMap<Entity, Vec<Entity>>, (citizen, wheat_farmer, _)| {
+            acc.entry(wheat_farmer.farm)
+                .or_insert(Vec::new())
+                .push(citizen);
+            acc
+        },
+    );
+    for DateChanged { date } in day_changed_event_reader.read() {
         let mut farms_map = wheat_farms.iter().fold(
             HashMap::new(),
-            |mut acc: HashMap<Entity, HashMap<Entity, usize>>, (farm_entity, wheat_farm_of)| {
+            |mut acc: HashMap<Entity, HashMap<Entity, usize>>, (farm_entity, wheat_farm_of, _)| {
                 acc.entry(wheat_farm_of.colony)
                     .or_insert(HashMap::new())
                     .entry(farm_entity)
@@ -134,7 +174,7 @@ pub fn check_farm_workers(
             },
         );
 
-        for (wheat_farmer, colony_of) in farmers.iter() {
+        for (_, wheat_farmer, colony_of) in farmers.iter() {
             farms_map
                 .get_mut(&colony_of.colony)
                 .unwrap()
@@ -142,13 +182,39 @@ pub fn check_farm_workers(
                 .and_modify(|count| *count += 1);
         }
 
+
+
+        let days_remaining = (NaiveDate::from_ymd_opt(date.year_ce().1 as i32, 10, 27).unwrap() - *date).num_days() as f32;
+        warn!("Days Remaining: {:?}", days_remaining);
         for (colony, farms) in farms_map {
+            let farm_mech_value = colonies.get(colony).unwrap().1.farming_mechanization;
+            let work_day_length = colonies.get(colony).unwrap().2.work_day_length();
             for (farm, farmer_count) in farms {
-                if farmer_count < 4 {
-                    for _ in 0..(4 - farmer_count) {
+                let (_, _, wheat_farm) = wheat_farms.get(farm).unwrap();
+
+                let mut total_workers_needed = 2;
+                if wheat_farm.remaining_for_harvest() > 0. {
+                    let work_hours_per_hec = weighted_range(1098.0, 8.0, farm_mech_value);
+                    let hecs_remaining = wheat_farm.remaining_for_harvest();
+                    let total_hours_needed = hecs_remaining * work_hours_per_hec;
+                    total_workers_needed = (total_hours_needed / (work_day_length * days_remaining)).ceil() as usize;
+                }
+                warn!("Total Workers needed: {:?}", total_workers_needed);
+
+                if farmer_count < total_workers_needed {
+                    for _ in 0..(total_workers_needed - farmer_count) {
                         event_writer.send(WheatFarmNeedsWorker { colony, farm });
                     }
+                } else if farmer_count > total_workers_needed {
+                    for _ in 0..farmer_count - total_workers_needed {
+                        let farmer = farmers_map.get_mut(&farm).unwrap().pop().unwrap();
+                        commands.get_entity(farmer).map(|mut f| {
+                            f.remove::<WheatFarmer>();
+                            f.remove::<Employed>();
+                        });
+                    }
                 }
+
             }
         }
     }
