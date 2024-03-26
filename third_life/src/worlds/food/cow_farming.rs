@@ -18,7 +18,8 @@ use crate::{
 };
 
 use super::{
-    tracking::MeatProduced, Cow, CowFarm, CowFarmCreated, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf
+    tracking::MeatProduced, Cow, CowFarm, CowFarmCreated, CowFarmNeedsWorker, CowFarmOf, CowFarmer,
+    CowOf, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf,
 };
 
 pub fn mark_breeders(
@@ -369,8 +370,22 @@ pub fn check_for_more_cow_farms(
             let min_surplus = world_config.food().min_surplus_multiplier();
 
             if meat_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
+                let mut new_farm_count =
+                    (meat_consumed.amount / meat_produced.amount).floor() as usize;
+                if new_farm_count == 0 {
+                    new_farm_count += 1;
+                }
+                if resource_map.get(&colony).unwrap().get_kgs() == 0.0 {
+                    new_farm_count += 2;
+                }
+                warn!("Need new Cow Farms");
+                warn!(
+                    "Consumption|production {:?}|{:?}",
+                    meat_consumed.amount, meat_produced.amount
+                );
+                warn!("New Farm Count: {:?}", new_farm_count);
                 let cow_farm_size = world_config.food().cow_farm_size();
-                if world_colony.space_left() > cow_farm_size {
+                while world_colony.space_left() > cow_farm_size && new_farm_count > 0 {
                     world_colony.take_up_farm_space(cow_farm_size);
                     created_events.send(CowFarmCreated { colony });
                     let cow_farm_entity = commands
@@ -412,6 +427,7 @@ pub fn check_for_more_cow_farms(
                         ))
                     }
                     commands.spawn_batch(cows);
+                    new_farm_count -= 1;
                 }
             }
             meat_produced.amount = 0.0;
