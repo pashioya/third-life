@@ -47,8 +47,10 @@ fn show_saving_choice(
     mut contexts: EguiContexts,
     mut next_state: ResMut<NextState<SimulationState>>,
     mut should_save_state: ResMut<NextState<ShouldSaveToDatabase>>,
+    mut simulation_uuid: ResMut<SimulationUuid>,
 ) {
     Window::new("choose whether to save to db or not").show(contexts.ctx_mut(), |ui| {
+        ui.text_edit_singleline(&mut simulation_uuid.name);
         ui.horizontal(|ui| {
             if ui.button("dont save data").clicked() {
                 should_save_state.set(ShouldSaveToDatabase::No);

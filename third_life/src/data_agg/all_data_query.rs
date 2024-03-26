@@ -93,7 +93,7 @@ pub fn record_daily_data(
                 treasury
             )| {
                 (e, {
-                    let mut record = ColonyRecord::new(uuid.0.clone(), date, e);
+                    let mut record = ColonyRecord::new(uuid.uuid.clone(), date, e);
                     record.farm_space = colony.farm_space();
                     record.human_space = colony.human_space();
                     record.urbanization_index = *urbanization_index;

@@ -46,7 +46,8 @@ fn init_postgres_db(
     let clear = true;
     let general_config = general_config.deref().clone();
     let worlds_config = worlds_config.deref().clone();
-    let simulation_uuid = simulation_uuid.deref().deref().clone();
+    let uuid = simulation_uuid.uuid.clone();
+    let name = simulation_uuid.name.clone();
 
     match task_executor.poll() {
         AsyncTaskStatus::Idle => {
@@ -78,6 +79,7 @@ fn init_postgres_db(
                     r#"
                     create table if not exists public.simulation_runs (
                         uuid varchar(255) not null primary key,
+                        name text not null,
                         time_created timestamptz not null,
                         description text not null,
                         general_config text not null,
@@ -169,13 +171,14 @@ fn init_postgres_db(
                 let _ = sqlx::query(
                     r#"
                     insert into simulation_runs(
-                        uuid, time_created, description, general_config, worlds_config
+                        uuid, name, time_created, description, general_config, worlds_config
                     ) values (
-                        $1, $2, $3, $4, $5
+                        $1, $2, $3, $4, $5, $6
                     );
                 "#,
                 )
-                .bind(simulation_uuid)
+                .bind(uuid)
+                .bind(name)
                 .bind(Local::now())
                 .bind("test")
                 .bind(serde_json::to_string(&general_config).unwrap())

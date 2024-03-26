@@ -14,8 +14,11 @@ pub struct PostgresDB {
     pub pool: Arc<Pool<Postgres>>,
 }
 
-#[derive(Resource)]
-pub struct SimulationUuid(pub Uuid);
+#[derive(Resource, Clone)]
+pub struct SimulationUuid{
+    pub uuid: Uuid,
+    pub name: String,
+}
 
 
 impl PostgresDB {
@@ -29,14 +32,10 @@ impl PostgresDB {
 
 impl Default for SimulationUuid {
     fn default() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
-impl std::ops::Deref for SimulationUuid {
-    type Target = Uuid;
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        Self { 
+            uuid: Uuid::new_v4(),
+            name: String::from("this simulation has no name")
+        }
     }
 }
 

@@ -87,7 +87,7 @@ fn display_world_uis(
                         ui.separator();
                         inf_env_eco_wealth_info(ui, inf, env, eco, wealth);
                         ui.separator();
-                        age_histogram(name, ui, &pop.births_per_age);
+                        age_histogram(&format!("{name} birth ages"), ui, &pop.births_per_age);
                     });
             });
     }

@@ -40,9 +40,9 @@
                 "ecosystem_vitylity": 0.5
             },
             "food": {
-                "cow_farms": 5,
+                "cow_farms": 9,
                 "cow_farm_size": 34.0,
-                "wheat_farms": 2,
+                "wheat_farms": 3,
                 "wheat_farm_size": 17.4,
                 "starting_beef": 100000.0,
                 "starting_carb": 100000.0,
@@ -96,9 +96,9 @@
                 "ecosystem_vitylity": 0.5
             },
             "food": {
-                "cow_farms": 5,
+                "cow_farms": 9,
                 "cow_farm_size": 34.0,
-                "wheat_farms": 2,
+                "wheat_farms": 3,
                 "wheat_farm_size": 17.4,
                 "starting_beef": 100000.0,
                 "starting_carb": 100000.0,
