@@ -185,7 +185,7 @@ pub fn check_farm_workers(
 
 
         let days_remaining = (NaiveDate::from_ymd_opt(date.year_ce().1 as i32, 10, 27).unwrap() - *date).num_days() as f32;
-        warn!("Days Remaining: {:?}", days_remaining);
+        //warn!("Days Remaining: {:?}", days_remaining);
         for (colony, farms) in farms_map {
             let farm_mech_value = colonies.get(colony).unwrap().1.farming_mechanization;
             let work_day_length = colonies.get(colony).unwrap().2.work_day_length();
@@ -199,7 +199,7 @@ pub fn check_farm_workers(
                     let total_hours_needed = hecs_remaining * work_hours_per_hec;
                     total_workers_needed = (total_hours_needed / (work_day_length * days_remaining)).ceil() as usize;
                 }
-                warn!("Total Workers needed: {:?}", total_workers_needed);
+                //warn!("Total Workers needed: {:?}", total_workers_needed);
 
                 if farmer_count < total_workers_needed {
                     for _ in 0..(total_workers_needed - farmer_count) {
