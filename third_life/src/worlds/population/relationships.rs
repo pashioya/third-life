@@ -53,7 +53,7 @@ pub fn init_couples(
                 .collect::<Vec<_>>();
 
             for (woman_entity, w_birthday) in colony_available_women {
-                if game_date.date.years_since(w_birthday).unwrap() > 18 {
+                if game_date.date.years_since(w_birthday).unwrap_or(0) > 18 {
                     if let Some(man_entity) = colony_available_men.pop() {
                         commands.get_entity(woman_entity).map(|mut e| {
                             e.try_insert(Spouse { spouse: man_entity });

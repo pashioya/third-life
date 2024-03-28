@@ -75,7 +75,7 @@ fn display_world_uis(
                         });
                         let start_date = NaiveDate::from_ymd_opt(config.starting_day().year(),config.starting_day().month(), config.starting_day().day()).unwrap();
                         ui.label(format!("Date: {}", game_date.date));
-                        ui.label(format!("Years Elapsed: {}", game_date.date.years_since(start_date).unwrap()));
+                        ui.label(format!("Years Elapsed: {}", game_date.date.years_since(start_date).unwrap_or(0)));
                         ui.separator();
                         resources(name, ui, &stor, &farms, &prod, &cons);
                         ui.separator();

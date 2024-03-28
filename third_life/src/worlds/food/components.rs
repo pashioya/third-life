@@ -153,6 +153,20 @@ pub struct WheatFarmer {
 }
 
 #[derive(Component)]
+pub struct CowBundle {
+    pub cow: Cow,
+    pub of: CowOf,
+}
+
+#[derive(Component)]
+pub struct BreederBundle {
+    pub cow: Cow,
+    pub of: CowOf,
+    pub bull: IsBull,
+    pub breeder: IsBreeder,
+}
+
+#[derive(Component)]
 pub struct Cow {
     pub birthday: NaiveDate
 }
@@ -234,4 +248,15 @@ pub struct CowFarmOf {
 #[derive(Component)]
 pub struct CowFarmer {
     pub farm: Entity,
+}
+
+
+#[derive(Resource, Default)]
+pub struct CowsToSpawn {
+    pub cows: Vec<CowBundle>,
+}
+
+#[derive(Resource, Default)]
+pub struct BullsToSpawn {
+    pub bulls: Vec<BreederBundle>,
 }

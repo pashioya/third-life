@@ -104,7 +104,7 @@ pub fn update_population(
 ) {
     let citizens = citizens.iter()
         .fold(HashMap::new(), |mut acc, (Citizen { birthday, height, weight, ..}, CitizenOf { colony })| {
-            let age = game_date.date.years_since(*birthday).unwrap() as f32;
+            let age = game_date.date.years_since(*birthday).unwrap_or(0) as f32;
             let (
                 ref mut ages,
                 ref mut count,
@@ -215,7 +215,7 @@ pub fn check_birthdays(
                 birthday_events.send(CitizenBirthday {
                     entity: citizen_entity,
                     colony: citizen_of.colony,
-                    age: game_date.years_since(citizen.birthday).unwrap() as usize,
+                    age: game_date.years_since(citizen.birthday).unwrap_or(0) as usize,
                 });
             }
         }

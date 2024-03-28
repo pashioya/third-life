@@ -1,6 +1,7 @@
 use std::usize;
 
 use bevy::{prelude::*, utils::hashbrown::HashMap};
+use bevy_async_task::{AsyncTaskPool, AsyncTaskStatus};
 use chrono::{Datelike, Months, NaiveDate};
 use rand_distr::num_traits::Float;
 
@@ -18,8 +19,7 @@ use crate::{
 };
 
 use super::{
-    tracking::MeatProduced, Cow, CowFarm, CowFarmCreated, CowFarmNeedsWorker, CowFarmOf, CowFarmer,
-    CowOf, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf,
+    tracking::MeatProduced, BreederBundle, BullsToSpawn, Cow, CowBundle, CowFarm, CowFarmCreated, CowFarmNeedsWorker, CowFarmOf, CowFarmer, CowOf, CowsToSpawn, IsBreeder, IsBull, MeatCreated, MeatResource, ResourceOf
 };
 
 pub fn mark_breeders(
@@ -168,7 +168,7 @@ pub fn check_cow_farm_workers(
                     farm.hours_worked = farm.hours_worked / 2.;
                 }
                 if farm.hours_worked
-                    > *cows_count_map.get(&farm_entity).unwrap() as f32
+                    > *cows_count_map.get(&farm_entity).unwrap_or(&0) as f32
                         * hours_needed_to_butcher_cow
                         * 1.2
                 {
@@ -176,7 +176,7 @@ pub fn check_cow_farm_workers(
                         farm.farmers_wanted -= 1;
                     }
                 } else if farm.hours_worked
-                    < *cows_count_map.get(&farm_entity).unwrap() as f32
+                    < *cows_count_map.get(&farm_entity).unwrap_or(&0) as f32
                         * hours_needed_to_butcher_cow
                         * 0.9
                 {
@@ -357,6 +357,8 @@ pub fn check_for_more_cow_farms(
     meat_resources: Query<(&ResourceOf, &MeatResource)>,
     game_date: Res<GameDate>,
     mut created_events: EventWriter<CowFarmCreated>,
+    mut cow_task_pool: AsyncTaskPool<Vec<CowBundle>>,
+    mut breeder_task_pool: AsyncTaskPool<Vec<BreederBundle>>,
 ) {
     let resource_map = meat_resources
         .iter()
@@ -368,14 +370,16 @@ pub fn check_for_more_cow_farms(
             colonies.iter_mut()
         {
             let min_surplus = world_config.food().min_surplus_multiplier();
-
-            if meat_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
-                let mut new_farm_count =
-                    (meat_consumed.amount / meat_produced.amount).floor() as usize;
+            let meat_in_storage = resource_map.get(&colony).unwrap().get_kgs();
+            if meat_consumed.amount * min_surplus > meat_in_storage {
+                let mut new_farm_count = if meat_produced.amount > 0. {
+                    let adjusted_meat_ratio = (meat_consumed.amount * min_surplus) / meat_produced.amount;
+                    adjusted_meat_ratio.floor() as usize
+                } else { 5 };
                 if new_farm_count == 0 {
                     new_farm_count += 1;
                 }
-                if resource_map.get(&colony).unwrap().get_kgs() == 0.0 {
+                if meat_in_storage == 0.0 {
                     new_farm_count += 2;
                 }
                 warn!("Need new Cow Farms");
@@ -398,35 +402,42 @@ pub fn check_for_more_cow_farms(
                             CowFarmOf { colony },
                         ))
                         .id();
-                    let mut cows = Vec::new();
-                    let mut bulls = Vec::new();
-                    //47 is min starting cows and we want to have 10 ready to harvest right away
                     let total_cows = 57.0;
                     let total_bulls = (total_cows / 25.0).ceil() as usize;
-                    for _ in 0..total_bulls {
-                        bulls.push((
-                            Cow {
-                                birthday: game_date.date - Months::new(12),
-                            },
-                            IsBull,
-                            IsBreeder,
-                            CowOf {
-                                cow_farm: cow_farm_entity,
-                            },
-                        ))
-                    }
-                    commands.spawn_batch(bulls);
-                    for _ in 0..(total_cows as usize - total_bulls) {
-                        cows.push((
-                            Cow {
-                                birthday: game_date.date - Months::new(12),
-                            },
-                            CowOf {
-                                cow_farm: cow_farm_entity,
-                            },
-                        ))
-                    }
-                    commands.spawn_batch(cows);
+                    let date = game_date.date.clone();
+                    info!("about to start breeder task");
+                    breeder_task_pool.spawn(async move {
+                        let mut bulls = Vec::new();
+                        for _ in 0..total_bulls {
+                            bulls.push(BreederBundle {
+                                cow: Cow {
+                                    birthday: date - Months::new(12),
+                                },
+                                of: CowOf {
+                                    cow_farm: cow_farm_entity,
+                                },
+                                bull: IsBull,
+                                breeder: IsBreeder,
+                            })
+                        }
+                        bulls
+                    });
+
+                    info!("about to start cow task");
+                    cow_task_pool.spawn(async move {
+                        let mut cows = Vec::new();
+                        for _ in 0..(total_cows as usize - total_bulls) {
+                            cows.push(CowBundle{
+                                cow: Cow {
+                                    birthday: date - Months::new(12),
+                                },
+                                of: CowOf {
+                                    cow_farm: cow_farm_entity,
+                                },
+                            })
+                        }
+                        cows
+                    });
                     new_farm_count -= 1;
                 }
             }
@@ -435,6 +446,59 @@ pub fn check_for_more_cow_farms(
         }
     }
 }
+
+
+pub fn add_cow_bundles(
+    mut cow_task_pool: AsyncTaskPool<Vec<CowBundle>>,
+    mut cows_to_spawn: ResMut<CowsToSpawn>,
+) {
+    for task in cow_task_pool.iter_poll() {
+        println!("what the fuckkk");
+        if let AsyncTaskStatus::Finished(cow_vec) = task {
+            warn!("about to spawn {} cow", cow_vec.len());
+            cows_to_spawn.cows.extend(cow_vec);
+        }
+    }
+}
+
+pub fn spawn_cows(
+    mut commands: Commands,
+    mut cows_to_spawn: ResMut<CowsToSpawn>,
+) {
+    let cows_len = cows_to_spawn.cows.len();
+    if cows_len > 0 {
+        let end = if cows_len > 10 { 10 } else { cows_len };
+        let to_spawn = cows_to_spawn.cows.drain(0..end).collect::<Vec<_>>();
+        info!("About to spawn {} cows", to_spawn.len());
+        commands.spawn_batch(to_spawn);
+    }
+}
+
+pub fn add_breeder_bundles(
+    mut breeder_task_pool: AsyncTaskPool<Vec<BreederBundle>>,
+    mut bulls_to_spawn: ResMut<BullsToSpawn>,
+) {
+    for task in breeder_task_pool.iter_poll() {
+        if let AsyncTaskStatus::Finished(breeder_vec) = task {
+            warn!("about to spawn {} bulls", breeder_vec.len());
+            bulls_to_spawn.bulls.extend(breeder_vec);
+        }
+    }
+}
+
+pub fn spawn_bulls(
+    mut commands: Commands,
+    mut bulls_to_spawn: ResMut<BullsToSpawn>,
+) {
+    let bulls_len = bulls_to_spawn.bulls.len();
+    if bulls_len > 0 {
+        let end = if bulls_len > 10 { 10 } else { bulls_len };
+        let to_spawn = bulls_to_spawn.bulls.drain(0..end).collect::<Vec<_>>();
+        info!("About to spawn {} bulls", to_spawn.len());
+        commands.spawn_batch(to_spawn);
+    }
+}
+
 fn get_age_in_months(game_date: NaiveDate, birthday: NaiveDate) -> i32 {
     let years = game_date.year() as i32 - birthday.year() as i32;
     let mut months = game_date.month() as i32 - birthday.month() as i32;

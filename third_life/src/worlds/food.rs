@@ -41,6 +41,10 @@ impl Plugin for FoodPlugin {
                 check_for_more_cow_farms,
                 work_cow_farm,
                 butcher_cows,
+                /*add_cow_bundles,
+                add_breeder_bundles,
+                spawn_cows,
+                spawn_bulls,*/
             )
                 .run_if(in_state(SimulationState::Running)),
         )
@@ -55,7 +59,9 @@ impl Plugin for FoodPlugin {
         .add_event::<MeatCreated>()
         .add_event::<MeatConsumedEvent>()
         .add_event::<CarbConsumedEvent>()
-        .add_event::<FoodCreated>();
+        .add_event::<FoodCreated>()
+        .init_resource::<CowsToSpawn>()
+        .init_resource::<BullsToSpawn>();
     }
 }
 

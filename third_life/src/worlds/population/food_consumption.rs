@@ -137,7 +137,7 @@ fn consume(
     let colony_to_citizens = citizens.iter_mut().fold(
         HashMap::new(),
         |mut acc, (citizen_entity, citizen, of, starving_optional, male)| {
-            let age = game_date.years_since(citizen.birthday).unwrap() as f32;
+            let age = game_date.years_since(citizen.birthday).unwrap_or(0) as f32;
             let daily_calories = match male {
                 Some(_) => {
                     66.4730 + 13.7516 * citizen.weight + 5.0033 * citizen.height - 6.7550 * age

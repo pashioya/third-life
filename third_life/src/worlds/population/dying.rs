@@ -67,7 +67,7 @@ pub fn old_age_death(
                 // INFO: Small optimization. Age is only calculated once meaning that
                 // if the birthday is in the days passed we are still using the old
                 // age. Since
-                let age = game_date.years_since(c.birthday).unwrap() as f32;
+                let age = game_date.years_since(c.birthday).unwrap_or(0) as f32;
                 for _ in &days_passed {
                     if died(age, *life_exp, *spread, rnd) {
                         death_events.send(CitizenDied::old_age(colony, e));
@@ -102,7 +102,7 @@ fn starvation(
 ) {
     for (entity, citizen, CitizenOf { colony }, starving) in starving_citizens.iter() {
         if starving.died() {
-            if game_date.date.years_since(citizen.birthday).unwrap() <= 5 {
+            if game_date.date.years_since(citizen.birthday).unwrap_or(0) <= 5 {
                 let _ = population.get_mut(*colony).map(|mut p| {
                     p.yearly_infant_deaths += 1;
                 });
