@@ -51,7 +51,7 @@ pub fn citizen_births(
         for (entity, Citizen { birthday, .. }, mut w_female, pregnancy, CitizenOf { colony }) in &mut pregnant_women.iter_mut() {
             if pregnancy.baby_due_date <= *date {
                 if let Ok((mut population, config)) = colonies.get_mut(*colony) {
-                    let mother_age = date.years_since(*birthday).unwrap() as usize;
+                    let mother_age = date.years_since(*birthday).unwrap_or(0) as usize;
                     
                     create_citizen(*date, *colony, *date, config.population())
                         .spawn(&mut commands);
@@ -216,12 +216,13 @@ pub fn pregnancy_desire(
     global_hunger_index: f32,
     number_of_children: usize,
 ) -> bool {
-    let mut preg_chance = (2.1
-        * urbanization
-        * (economy_t / economy_tm1)
-        * (4.5 - global_hunger_index)
-        * (2.0 - urbanization))
-        .abs();
+    let mut preg_chance = (
+        (
+            2.1 * urbanization * (economy_t / economy_tm1)
+        ) * (
+            4.5 * (1. - urbanization)
+        )
+    ) * (1. - global_hunger_index);
     
     // adjust the pregnancy chance by reducing it by 10% for each child
     preg_chance = preg_chance * (1.0 - 0.1f32).powi(number_of_children as i32) * 100.0;

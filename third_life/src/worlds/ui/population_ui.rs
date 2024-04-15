@@ -54,7 +54,7 @@ pub fn update_ages(
         |mut acc: HashMap<Entity, HashMap<usize, usize>>, (citizen, citizen_of)| {
             *acc.entry(citizen_of.colony)
                 .or_insert(HashMap::new())
-                .entry(game_date.date.years_since(citizen.birthday).unwrap() as usize)
+                .entry(game_date.date.years_since(citizen.birthday).unwrap_or(0) as usize)
                 .or_insert(0) += 1;
             acc
         },

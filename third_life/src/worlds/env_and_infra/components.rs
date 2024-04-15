@@ -85,14 +85,20 @@ impl SanitationInfrastructure {
         child_stunting: f32,
         child_wasting: f32,
     ) {
-        self.global_hunger_index = (undernourishment / 80.0) * 100.0
-            + (child_stunting / 70.0) * 100.0
-            + (child_wasting / 30.0) * 100.0
-            + (self.actual_infant_death_ratio / 35.0) * 100.0;
-        //  FIXME: Why is this needed? shouldtnt this be 0 by default?
-        if self.global_hunger_index.is_nan() {
-            self.global_hunger_index = 0.0;
-        }
+        let devide_or_zero = |var: f32, dev: f32| -> f32 {
+            if var > 0. { var / dev } else { 0. }
+        };
+        let undernourishment = devide_or_zero(undernourishment, 80.);
+        let child_stunting = devide_or_zero(child_stunting, 70.);
+        let child_wasting = devide_or_zero(child_wasting, 30.);
+        let actual_infant_death_ratio = devide_or_zero(self.actual_infant_death_ratio, 35.);
+        let global_hunger_index = undernourishment
+            + child_stunting
+            + child_wasting
+            + actual_infant_death_ratio;
+        self.global_hunger_index = 1. / (
+            global_hunger_index.clamp(0., 1.) * -10. -1.
+        ) + 1.;
     }
 }
 

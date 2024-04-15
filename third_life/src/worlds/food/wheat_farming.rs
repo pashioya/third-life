@@ -1,6 +1,5 @@
 use bevy::{prelude::*, utils::hashbrown::HashMap};
 use chrono::{Datelike, NaiveDate};
-use rand_distr::num_traits::Float;
 
 use crate::{
     time::{DateChanged, YearChanged},
@@ -86,16 +85,21 @@ pub fn check_wheat_farms_counts(
         );*/
 
     for _ in year_changed_reader.read() {
-        for (colony, mut world_colony, mut carb_consumed, mut carb_produced, world_config) in
-            colonies.iter_mut()
-        {
+        for (
+            colony,
+            mut world_colony,
+            mut carb_consumed,
+            mut carb_produced,
+            world_config
+        ) in colonies.iter_mut() {
+
             let min_surplus = world_config.food().min_surplus_multiplier();
-            if carb_consumed.amount * min_surplus > resource_map.get(&colony).unwrap().get_kgs() {
-                let mut new_farm_count =
-                    (carb_consumed.amount / carb_produced.amount).floor() as usize;
-                if new_farm_count == 0 {
-                    new_farm_count += 1;
-                }
+            let carb_in_storage = resource_map.get(&colony).unwrap().get_kgs();
+            if carb_consumed.amount * min_surplus > carb_in_storage {
+                let mut new_farm_count = if carb_produced.amount > 0. {
+                    let adjusted_meat_ratio = (carb_consumed.amount * min_surplus) / carb_produced.amount;
+                    adjusted_meat_ratio.floor() as usize
+                } else { 5 };
                 if resource_map.get(&colony).unwrap().get_kgs() == 0.0 {
                     new_farm_count += 2;
                 }
